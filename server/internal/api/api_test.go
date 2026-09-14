@@ -3,6 +3,7 @@ package api_test
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -36,6 +37,7 @@ func testEnv(t *testing.T) (*api.Server, *store.Store, *config.Config) {
 		DBKey:      key,
 		PendingTTL: 15 * time.Minute,
 		MessageTTL: 24 * time.Hour,
+		EnrollTTL:  15 * time.Minute,
 		PurgeEvery: time.Minute,
 		TokenBytes: 32,
 	}
@@ -71,6 +73,9 @@ func createActiveAccount(t *testing.T, h http.Handler, user, pass string) string
 	}, nil)
 	if code != 201 {
 		t.Fatalf("create: %d %#v", code, out)
+	}
+	if qr, _ := out["totp_qr_png"].(string); !strings.HasPrefix(qr, "data:image/png;base64,") {
+		t.Fatalf("expected totp_qr_png data url, got %#v", out["totp_qr_png"])
 	}
 	secret := out["totp_secret"].(string)
 	otp, err := totp.GenerateCode(secret, time.Now())
@@ -288,7 +293,7 @@ func TestSealedDBNotPlaintext(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = st.CreateAccountInactive("z", "hash", "TOTPSECRET")
+	_, err = st.CreateAccountInactive("z", "hash", "TOTPSECRET", 15*time.Minute)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -325,5 +330,64 @@ func TestPIIRejected(t *testing.T) {
 	}, nil)
 	if code != 400 {
 		t.Fatalf("expected 400 got %d %#v", code, out)
+	}
+}
+
+func TestUnfinishedEnrollmentReleasesUsername(t *testing.T) {
+	srv, st, _ := testEnv(t)
+	h := srv.Handler()
+
+	code, _, out := doJSON(t, h, "POST", "/v1/accounts", map[string]any{
+		"username": "gina", "password": "password1234",
+	}, nil)
+	if code != 201 {
+		t.Fatalf("create: %d %#v", code, out)
+	}
+	firstID := out["account_id"]
+
+	code, _, out = doJSON(t, h, "POST", "/v1/accounts", map[string]any{
+		"username": "gina", "password": "password9999xx",
+	}, nil)
+	if code != 201 {
+		t.Fatalf("recreate unfinished: %d %#v", code, out)
+	}
+	if out["account_id"] == firstID {
+		t.Fatal("expected a new row after replacing unfinished enrollment")
+	}
+
+	code, _, out = doJSON(t, h, "POST", "/v1/accounts/abandon", map[string]any{
+		"username": "gina", "password": "password9999xx",
+	}, nil)
+	if code != 200 || out["released"] != true {
+		t.Fatalf("abandon: %d %#v", code, out)
+	}
+	if _, err := st.GetAccountByUsername("gina"); !errors.Is(err, store.ErrNotFound) {
+		t.Fatalf("username should be free after abandon, got %v", err)
+	}
+
+	_, err := st.CreateAccountInactive("ivy", "xhashxxxxxxxxxx", "SECRETTOTPIVY", -time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	n, err := st.PurgeExpired(time.Now().UTC())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n < 1 {
+		t.Fatalf("expected purge of expired enrollment, n=%d", n)
+	}
+	if _, err := st.GetAccountByUsername("ivy"); !errors.Is(err, store.ErrNotFound) {
+		t.Fatalf("ivy should be released, got %v", err)
+	}
+
+	secret := createActiveAccount(t, h, "gina", "password1234")
+	if secret == "" {
+		t.Fatal("active account missing secret")
+	}
+	code, _, out = doJSON(t, h, "POST", "/v1/accounts", map[string]any{
+		"username": "gina", "password": "password1234",
+	}, nil)
+	if code != 409 {
+		t.Fatalf("active username must stay taken: %d %#v", code, out)
 	}
 }

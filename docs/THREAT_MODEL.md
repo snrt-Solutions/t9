@@ -42,7 +42,7 @@
 - Until App Attest: assertion is best-effort
 - Working SQLite plaintext while process is live (RAM/disk forensics on a running node)
 - Backup passphrase strength determines offline key safety
-- One-device revoke-then-rebind needs user diligence
+- Incomplete TOTP enrollments are deleted (timeout, cancel, or replace); they must not park a username
 
 ## Audit notes
 

@@ -5,12 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>T-9 — create account</title>
   <link rel="stylesheet" href="/assets/css/t9.css" />
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js" defer></script>
 </head>
 <body>
   <div class="wrap">
     <nav class="nav">
-      <div class="brand">T-9<span>fetch-once mailbox</span></div>
+      <div class="brand">T-9<span class="promise">fetch-once messaging.<em>pure privacy but feels like SMS</em></span></div>
       <div class="nav-links">
         <a class="chip" href="/">Create</a>
         <a class="chip" href="/release.html">Release</a>
@@ -20,7 +19,7 @@
 
     <p class="eyebrow">No web login · mandatory 2FA</p>
     <h1>Create a handle.<br/>Enroll TOTP. Done.</h1>
-    <p class="lede">Browsers never get a mailbox session. After TOTP confirm, bind a device from the signed iOS app and release it here.</p>
+    <p class="lede">There is no web inbox and no “log in” on this site. After TOTP, you only open the signed iOS app — then come back here to <em>release</em> that device.</p>
 
     <div class="bezel">
       <div class="bezel-inner">
@@ -30,35 +29,80 @@
           <label for="password">Password (10+)</label>
           <input id="password" name="password" type="password" autocomplete="new-password" minlength="10" required />
           <div class="actions">
-            <button class="btn accent" type="submit">Create <span class="orb">↗</span></button>
+            <button class="btn accent" type="submit">Create account <span class="orb">↗</span></button>
           </div>
         </form>
+
         <div id="enroll" hidden>
-          <p class="meter">Scan with your authenticator</p>
-          <div class="qr-box"><canvas id="qr"></canvas></div>
-          <label for="secret">TOTP secret</label>
+          <p class="meter">1 · Scan this QR with an authenticator (Aegis, 2FAS, iOS Passwords…)</p>
+          <div class="qr-box" id="qr-box"></div>
+          <label for="secret">Or type the secret into the app</label>
           <input id="secret" readonly />
-          <label for="code">Enter current code</label>
+          <label for="code">2 · Enter the live 6-digit code</label>
           <input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="123456" />
           <div class="actions">
             <button class="btn teal" type="button" id="confirm">Confirm TOTP <span class="orb">✓</span></button>
+            <button class="btn secondary" type="button" id="cancel-enroll">Cancel — free username</button>
           </div>
         </div>
+
+        <div id="next" hidden>
+          <p class="meter">Account is active — still no web login</p>
+          <ol class="steps">
+            <li>Open the signed <strong>T-9 iOS app</strong> (not this browser).</li>
+            <li>Enter this server URL, then the username and password you just chose.</li>
+            <li>The app waits. Come back here and <strong>Release</strong> the pending device with a TOTP code.</li>
+            <li>Messages exist only on that device after fetch.</li>
+          </ol>
+          <p class="note tight" id="server-url-note"></p>
+          <div class="actions">
+            <a class="btn teal" href="/release.html">Open device release <span class="orb">↗</span></a>
+          </div>
+        </div>
+
         <p class="status" id="status"></p>
-        <p class="note">No email. No phone. No cookies. Account finalize does not log you in on the web.</p>
+        <p class="note">No email. No phone. No cookies. Incomplete TOTP enrollment is deleted and the username is released (cancel, leave the page, or 15-minute timeout).</p>
       </div>
     </div>
   </div>
+  <script src="/assets/js/qrcode.min.js"></script>
   <script src="/assets/js/t9.js"></script>
   <script>
     const status = document.getElementById("status");
     let username = "";
+    let password = "";
+    let enrollOpen = false;
+
+    function showCreate() {
+      enrollOpen = false;
+      password = "";
+      document.getElementById("enroll").hidden = true;
+      document.getElementById("next").hidden = true;
+      document.getElementById("create-form").hidden = false;
+      document.getElementById("qr-box").replaceChildren();
+      document.getElementById("secret").value = "";
+      document.getElementById("code").value = "";
+    }
+
+    async function abandonEnrollment() {
+      if (!enrollOpen || !username || !password) return;
+      enrollOpen = false;
+      const body = JSON.stringify({ username, password });
+      try {
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon("/v1/accounts/abandon", new Blob([body], { type: "application/json" }));
+        } else {
+          await api("/v1/accounts/abandon", { method: "POST", body });
+        }
+      } catch (_) { /* username may already be free */ }
+      password = "";
+    }
 
     document.getElementById("create-form").addEventListener("submit", async (e) => {
       e.preventDefault();
       setStatus(status, "Creating…");
       username = document.getElementById("username").value.trim();
-      const password = document.getElementById("password").value;
+      password = document.getElementById("password").value;
       try {
         const data = await api("/v1/accounts", {
           method: "POST",
@@ -66,11 +110,15 @@
         });
         document.getElementById("create-form").hidden = true;
         document.getElementById("enroll").hidden = false;
-        document.getElementById("secret").value = data.totp_secret;
-        if (window.QRCode) {
-          QRCode.toCanvas(document.getElementById("qr"), data.totp_uri, { width: 220, margin: 1 });
+        enrollOpen = true;
+        document.getElementById("secret").value = data.totp_secret || "";
+        const shown = mountTOTPQR(document.getElementById("qr-box"), data);
+        if (!shown && !data.totp_secret) {
+          setStatus(status, "QR missing from server. Create the account again.", "err");
+          return;
         }
-        setStatus(status, "Scan the QR, then confirm a live code.", "ok");
+        const until = data.enroll_expires_at ? " Finish before " + data.enroll_expires_at + "." : "";
+        setStatus(status, "Scan the QR (or open it in your authenticator), then confirm a live code. Leaving or cancelling deletes this incomplete account." + until, "ok");
       } catch (err) {
         setStatus(status, err.message || "failed", "err");
       }
@@ -83,11 +131,47 @@
           method: "POST",
           body: JSON.stringify({ username, code }),
         });
-        setStatus(status, "Account active. Install the signed app, sign in, then open Release to approve the pending device.", "ok");
+        enrollOpen = false;
+        password = "";
+        document.getElementById("enroll").hidden = true;
+        document.getElementById("next").hidden = false;
+        try {
+          const info = await api("/v1/info");
+          document.getElementById("server-url-note").textContent =
+            "App server URL: " + (info.base_url || location.origin);
+        } catch (_) {
+          document.getElementById("server-url-note").textContent =
+            "App server URL: " + location.origin;
+        }
+        setStatus(status, "TOTP confirmed. Skip looking for a web login — open the iOS app, then Release.", "ok");
       } catch (err) {
+        if (err.status === 404) {
+          await abandonEnrollment();
+          showCreate();
+          setStatus(status, "Enrollment expired. Username is free — create again.", "err");
+          return;
+        }
         setStatus(status, err.message || "confirm failed", "err");
       }
     });
+
+    document.getElementById("cancel-enroll").addEventListener("click", async () => {
+      try {
+        if (username && password) {
+          await api("/v1/accounts/abandon", {
+            method: "POST",
+            body: JSON.stringify({ username, password }),
+          });
+        }
+      } catch (_) { /* already gone */ }
+      enrollOpen = false;
+      password = "";
+      showCreate();
+      setStatus(status, "Incomplete enrollment deleted. Username is free.", "ok");
+    });
+
+    window.addEventListener("pagehide", () => { abandonEnrollment(); });
+    window.addEventListener("beforeunload", () => { abandonEnrollment(); });
   </script>
 </body>
 </html>

@@ -10,6 +10,7 @@ services:
       T9_DATA: /data
       T9_BASE_URL: ${T9_BASE_URL:-http://127.0.0.1:8080}
       T9_DB_KEY: ${T9_DB_KEY:?set T9_DB_KEY to a long random secret}
+      T9_RESET_DB: ${T9_RESET_DB:-}
     volumes:
       - t9-data:/data
     ports:

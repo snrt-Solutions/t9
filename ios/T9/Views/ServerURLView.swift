@@ -10,11 +10,11 @@ struct ServerURLView: View {
                 brand
                 Eyebrow(text: "Same-server mailbox")
                 Text("Point at your T-9 host")
-                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                    .font(T9Theme.font(34, .bold))
                     .tracking(-0.8)
                     .foregroundStyle(T9Theme.ink)
                 Text("No App Store directory. Enter the base URL from your Docker or Tunnel deploy.")
-                    .font(.system(size: 16, weight: .regular, design: .rounded))
+                    .font(T9Theme.font(16, .regular))
                     .foregroundStyle(T9Theme.muted)
 
                 T9Theme.bezel {
@@ -24,9 +24,9 @@ struct ServerURLView: View {
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
                             .keyboardType(.URL)
-                            .font(.system(size: 15, weight: .medium, design: .monospaced))
+                            .font(T9Theme.font(15, .medium))
                             .padding(14)
-                            .background(RoundedRectangle(cornerRadius: 14).fill(Color(white: 0.94)))
+                            .background(Color.white.overlay(Rectangle().stroke(Color.black, lineWidth: 2)))
 
                         IslandButton(title: busy ? "Checking…" : "Continue", tint: T9Theme.accent) {
                             Task { await continueTap() }
@@ -35,7 +35,7 @@ struct ServerURLView: View {
 
                         if !app.statusLine.isEmpty {
                             Text(app.statusLine)
-                                .font(.system(size: 12, design: .monospaced))
+                                .font(T9Theme.font(12))
                                 .foregroundStyle(T9Theme.muted)
                         }
                     }
@@ -45,19 +45,21 @@ struct ServerURLView: View {
     }
 
     private var brand: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 6) {
             Text("T-9")
-                .font(.system(size: 28, weight: .bold, design: .rounded))
-            Text("FETCH-ONCE")
-                .font(.system(size: 11, weight: .medium, design: .monospaced))
-                .tracking(2)
-                .foregroundStyle(T9Theme.muted)
+                .font(T9Theme.font(28, .bold))
+            VStack(alignment: .leading, spacing: 2) {
+                Text("fetch-once messaging.")
+                Text("pure privacy but feels like SMS")
+            }
+            .font(T9Theme.font(12, .medium))
+            .foregroundStyle(T9Theme.muted)
         }
     }
 
     private func fieldLabel(_ t: String) -> some View {
         Text(t.uppercased())
-            .font(.system(size: 11, weight: .semibold, design: .rounded))
+            .font(T9Theme.font(11, .semibold))
             .tracking(1.4)
             .foregroundStyle(T9Theme.muted)
     }

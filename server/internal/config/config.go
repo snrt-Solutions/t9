@@ -16,6 +16,7 @@ type Config struct {
 
 	PendingTTL  time.Duration
 	MessageTTL  time.Duration
+	EnrollTTL   time.Duration
 	PurgeEvery  time.Duration
 	TokenBytes  int
 	Fingerprint string // set after store open from server identity
@@ -38,6 +39,7 @@ func Load() (*Config, error) {
 		DBKey:      []byte(key),
 		PendingTTL: 15 * time.Minute,
 		MessageTTL: 24 * time.Hour,
+		EnrollTTL:  15 * time.Minute,
 		PurgeEvery: time.Minute,
 		TokenBytes: 32,
 	}, nil

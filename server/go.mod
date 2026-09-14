@@ -3,6 +3,7 @@ module github.com/t9-messenger/t9/server
 go 1.26.0
 
 require (
+	github.com/boombuler/barcode v1.0.1
 	github.com/google/uuid v1.6.0
 	github.com/pquerna/otp v1.5.0
 	golang.org/x/crypto v0.57.0
@@ -10,7 +11,6 @@ require (
 )
 
 require (
-	github.com/boombuler/barcode v1.0.1-0.20190219062509-6c824513bacc // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect

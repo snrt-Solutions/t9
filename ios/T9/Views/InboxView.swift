@@ -10,7 +10,7 @@ struct InboxView: View {
                 Eyebrow(text: "Fetch-once")
                 HStack {
                     Text("Inbox")
-                        .font(.system(size: 30, weight: .bold, design: .rounded))
+                        .font(T9Theme.font(30, .bold))
                     Spacer()
                     IslandButton(title: busy ? "…" : "Fetch", tint: T9Theme.accent) {
                         Task { await fetch() }
@@ -18,13 +18,13 @@ struct InboxView: View {
                     .disabled(busy)
                 }
                 Text("Successful fetch deletes ciphertext on the server.")
-                    .font(.system(size: 14))
+                    .font(T9Theme.font(14))
                     .foregroundStyle(T9Theme.muted)
 
                 if app.inbox.isEmpty {
                     T9Theme.bezel {
                         Text("Empty tray")
-                            .font(.system(size: 15, design: .monospaced))
+                            .font(T9Theme.font(15))
                             .foregroundStyle(T9Theme.muted)
                     }
                 } else {
@@ -32,10 +32,10 @@ struct InboxView: View {
                         T9Theme.bezel {
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(msg.fromUsername)
-                                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                                    .font(T9Theme.font(12, .semibold))
                                     .foregroundStyle(T9Theme.teal)
                                 Text(msg.plaintext)
-                                    .font(.system(size: 16, design: .rounded))
+                                    .font(T9Theme.font(16))
                             }
                         }
                     }

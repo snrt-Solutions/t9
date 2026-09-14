@@ -11,7 +11,7 @@ struct CredentialsView: View {
             VStack(alignment: .leading, spacing: 18) {
                 Eyebrow(text: "Device login")
                 Text("Credentials stay pending")
-                    .font(.system(size: 32, weight: .bold, design: .rounded))
+                    .font(T9Theme.font(32, .bold))
                     .tracking(-0.6)
                 Text("Password alone cannot bind this device. Approve the pending login on the web with TOTP.")
                     .foregroundStyle(T9Theme.muted)
@@ -28,10 +28,10 @@ struct CredentialsView: View {
                         }
                         .disabled(busy)
                         Button("Back") { app.phase = .server }
-                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .font(T9Theme.font(14, .medium))
                             .foregroundStyle(T9Theme.muted)
                         Text(app.statusLine)
-                            .font(.system(size: 12, design: .monospaced))
+                            .font(T9Theme.font(12))
                             .foregroundStyle(T9Theme.muted)
                     }
                 }
@@ -42,28 +42,28 @@ struct CredentialsView: View {
     private func labeledField(_ title: String, text: Binding<String>) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title.uppercased())
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .font(T9Theme.font(11, .semibold))
                 .tracking(1.4)
                 .foregroundStyle(T9Theme.muted)
             TextField(title, text: text)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
-                .font(.system(size: 15, weight: .medium, design: .monospaced))
+                .font(T9Theme.font(15, .medium))
                 .padding(14)
-                .background(RoundedRectangle(cornerRadius: 14).fill(Color(white: 0.94)))
+                .background(Color.white.overlay(Rectangle().stroke(Color.black, lineWidth: 2)))
         }
     }
 
     private func labeledSecure(_ title: String, text: Binding<String>) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title.uppercased())
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .font(T9Theme.font(11, .semibold))
                 .tracking(1.4)
                 .foregroundStyle(T9Theme.muted)
             SecureField(title, text: text)
-                .font(.system(size: 15, weight: .medium, design: .monospaced))
+                .font(T9Theme.font(15, .medium))
                 .padding(14)
-                .background(RoundedRectangle(cornerRadius: 14).fill(Color(white: 0.94)))
+                .background(Color.white.overlay(Rectangle().stroke(Color.black, lineWidth: 2)))
         }
     }
 

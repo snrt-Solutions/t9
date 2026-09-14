@@ -1,6 +1,7 @@
 package store
 
 import (
+	"crypto/sha256"
 	"database/sql"
 	"encoding/base64"
 	"errors"
@@ -15,6 +16,15 @@ import (
 
 	_ "modernc.org/sqlite"
 )
+
+func envTruthy(k string) bool {
+	switch os.Getenv(k) {
+	case "1", "true", "TRUE", "yes", "YES", "on", "ON":
+		return true
+	default:
+		return false
+	}
+}
 
 var (
 	ErrNotFound       = errors.New("not found")
@@ -37,13 +47,14 @@ type Store struct {
 }
 
 type Account struct {
-	ID           string
-	Username     string
-	PasswordHash string
-	TOTPEnc      []byte
-	Active       bool
-	Pubkey       string
-	CreatedAt    time.Time
+	ID              string
+	Username        string
+	PasswordHash    string
+	TOTPEnc         []byte
+	Active          bool
+	Pubkey          string
+	CreatedAt       time.Time
+	EnrollExpiresAt time.Time // zero if active / not applicable
 }
 
 type PendingLogin struct {
@@ -81,21 +92,39 @@ func Open(dataDir string, master []byte) (*Store, error) {
 		return nil, err
 	}
 	sealed := filepath.Join(dataDir, "t9.db.sealed")
+	keyFPPath := filepath.Join(dataDir, "t9.db.keyfp")
 	workPath := filepath.Join(dataDir, ".t9.work.db")
 	_ = os.Remove(workPath)
+
+	sum := sha256.Sum256(master)
+	masterFP := fmt.Sprintf("%x", sum[:8])
+
+	if envTruthy("T9_RESET_DB") {
+		_ = os.Remove(sealed)
+		_ = os.Remove(keyFPPath)
+	}
 
 	if _, err := os.Stat(sealed); err == nil {
 		raw, err := os.ReadFile(sealed)
 		if err != nil {
 			return nil, err
 		}
+		storedFP, _ := os.ReadFile(keyFPPath)
 		plain, err := crypto.OpenFile(master, raw)
 		if err != nil {
-			return nil, fmt.Errorf("decrypt database (check T9_DB_KEY): %w", err)
+			hint := "T9_DB_KEY does not match the sealed database (or the file is corrupt). " +
+				"Restore the original key, or recreate data with T9_RESET_DB=1 once " +
+				"(destroys mailbox data), or remove the Docker volume."
+			if len(storedFP) > 0 && string(storedFP) != masterFP {
+				hint = fmt.Sprintf("T9_DB_KEY fingerprint mismatch (stored=%s current=%s). %s",
+					string(storedFP), masterFP, hint)
+			}
+			return nil, fmt.Errorf("%s: %w", hint, err)
 		}
 		if err := os.WriteFile(workPath, plain, 0o600); err != nil {
 			return nil, err
 		}
+		_ = os.WriteFile(keyFPPath, []byte(masterFP), 0o600)
 	}
 
 	dsn := fmt.Sprintf("file:%s?_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)&_pragma=journal_mode(DELETE)", workPath)
@@ -125,6 +154,7 @@ func Open(dataDir string, master []byte) (*Store, error) {
 		_ = db.Close()
 		return nil, err
 	}
+	_ = os.WriteFile(keyFPPath, []byte(masterFP), 0o600)
 	return s, nil
 }
 
@@ -143,7 +173,8 @@ CREATE TABLE IF NOT EXISTS accounts (
   totp_enc BLOB NOT NULL,
   active INTEGER NOT NULL DEFAULT 0,
   pubkey TEXT NOT NULL DEFAULT '',
-  created_at TEXT NOT NULL
+  created_at TEXT NOT NULL,
+  enroll_expires_at TEXT NOT NULL DEFAULT ''
 );
 CREATE TABLE IF NOT EXISTS pending_device_logins (
   id TEXT PRIMARY KEY,
@@ -174,7 +205,11 @@ CREATE INDEX IF NOT EXISTS idx_messages_recipient ON messages(recipient_account_
 CREATE INDEX IF NOT EXISTS idx_messages_expires ON messages(expires_at);
 CREATE INDEX IF NOT EXISTS idx_pending_expires ON pending_device_logins(expires_at);
 `)
-	return err
+	if err != nil {
+		return err
+	}
+	_, _ = s.db.Exec(`ALTER TABLE accounts ADD COLUMN enroll_expires_at TEXT NOT NULL DEFAULT ''`)
+	return nil
 }
 
 func (s *Store) ensureServerIdentity() error {
@@ -250,16 +285,26 @@ func parseTime(s string) (time.Time, error) {
 }
 
 // CreateAccountInactive stores usr/pw + encrypted TOTP; active=false until confirm.
-func (s *Store) CreateAccountInactive(username, passwordHash, totpSecret string) (*Account, error) {
+// An unfinished enrollment for the same username is deleted so the handle is free.
+func (s *Store) CreateAccountInactive(username, passwordHash, totpSecret string, enrollTTL time.Duration) (*Account, error) {
+	if err := s.deleteInactiveUsername(username); err != nil {
+		return nil, err
+	}
+	if existing, err := s.GetAccountByUsername(username); err == nil && existing.Active {
+		return nil, ErrConflict
+	} else if err != nil && !errors.Is(err, ErrNotFound) {
+		return nil, err
+	}
 	enc, err := s.encryptCol(totpSecret)
 	if err != nil {
 		return nil, err
 	}
 	id := uuid.NewString()
 	t := nowUTC()
+	exp := t.Add(enrollTTL)
 	_, err = s.db.Exec(
-		`INSERT INTO accounts(id,username,password_hash,totp_enc,active,pubkey,created_at) VALUES(?,?,?,?,0,'',?)`,
-		id, username, passwordHash, enc, fmtTime(t),
+		`INSERT INTO accounts(id,username,password_hash,totp_enc,active,pubkey,created_at,enroll_expires_at) VALUES(?,?,?,?,0,'',?,?)`,
+		id, username, passwordHash, enc, fmtTime(t), fmtTime(exp),
 	)
 	if err != nil {
 		if isUnique(err) {
@@ -268,7 +313,47 @@ func (s *Store) CreateAccountInactive(username, passwordHash, totpSecret string)
 		return nil, err
 	}
 	_ = s.SealNow()
-	return &Account{ID: id, Username: username, PasswordHash: passwordHash, TOTPEnc: enc, Active: false, CreatedAt: t}, nil
+	return &Account{ID: id, Username: username, PasswordHash: passwordHash, TOTPEnc: enc, Active: false, CreatedAt: t, EnrollExpiresAt: exp}, nil
+}
+
+func (s *Store) deleteInactiveUsername(username string) error {
+	acc, err := s.GetAccountByUsername(username)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return nil
+		}
+		return err
+	}
+	if acc.Active {
+		return nil
+	}
+	return s.deleteAccountRow(acc.ID)
+}
+
+func (s *Store) deleteAccountRow(id string) error {
+	_, _ = s.db.Exec(`DELETE FROM messages WHERE recipient_account_id=?`, id)
+	_, _ = s.db.Exec(`DELETE FROM pending_device_logins WHERE account_id=?`, id)
+	_, _ = s.db.Exec(`DELETE FROM device_sessions WHERE account_id=?`, id)
+	_, err := s.db.Exec(`DELETE FROM accounts WHERE id=? AND active=0`, id)
+	if err != nil {
+		return err
+	}
+	return s.SealNow()
+}
+
+// AbandonEnrollment deletes an inactive account if the password matches.
+func (s *Store) AbandonEnrollment(username, password string, verify func(encoded, password string) bool) error {
+	acc, err := s.GetAccountByUsername(username)
+	if err != nil {
+		return err
+	}
+	if acc.Active {
+		return ErrConflict
+	}
+	if !verify(acc.PasswordHash, password) {
+		return ErrDenied
+	}
+	return s.deleteAccountRow(acc.ID)
 }
 
 func isUnique(err error) bool {
@@ -295,6 +380,10 @@ func (s *Store) ConfirmTOTP(username, code string, validate func(secret, code st
 	if acc.Active {
 		return ErrConflict
 	}
+	if !acc.EnrollExpiresAt.IsZero() && !nowUTC().Before(acc.EnrollExpiresAt) {
+		_ = s.deleteAccountRow(acc.ID)
+		return ErrNotFound
+	}
 	secret, err := s.decryptCol(acc.TOTPEnc)
 	if err != nil {
 		return err
@@ -302,51 +391,45 @@ func (s *Store) ConfirmTOTP(username, code string, validate func(secret, code st
 	if !validate(secret, code) {
 		return ErrDenied
 	}
-	_, err = s.db.Exec(`UPDATE accounts SET active=1 WHERE id=?`, acc.ID)
+	_, err = s.db.Exec(`UPDATE accounts SET active=1, enroll_expires_at='' WHERE id=?`, acc.ID)
 	if err != nil {
 		return err
 	}
 	return s.SealNow()
 }
 
-func (s *Store) GetAccountByUsername(username string) (*Account, error) {
-	row := s.db.QueryRow(
-		`SELECT id,username,password_hash,totp_enc,active,pubkey,created_at FROM accounts WHERE username=? COLLATE NOCASE`,
-		username,
-	)
+func scanAccount(row interface{ Scan(dest ...any) error }) (*Account, error) {
 	var a Account
 	var active int
-	var created string
-	if err := row.Scan(&a.ID, &a.Username, &a.PasswordHash, &a.TOTPEnc, &active, &a.Pubkey, &created); err != nil {
+	var created, enrollExp string
+	if err := row.Scan(&a.ID, &a.Username, &a.PasswordHash, &a.TOTPEnc, &active, &a.Pubkey, &created, &enrollExp); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
 		}
 		return nil, err
 	}
 	a.Active = active == 1
-	t, _ := parseTime(created)
-	a.CreatedAt = t
+	a.CreatedAt, _ = parseTime(created)
+	if enrollExp != "" {
+		a.EnrollExpiresAt, _ = parseTime(enrollExp)
+	}
 	return &a, nil
+}
+
+func (s *Store) GetAccountByUsername(username string) (*Account, error) {
+	row := s.db.QueryRow(
+		`SELECT id,username,password_hash,totp_enc,active,pubkey,created_at,COALESCE(enroll_expires_at,'') FROM accounts WHERE username=? COLLATE NOCASE`,
+		username,
+	)
+	return scanAccount(row)
 }
 
 func (s *Store) GetAccountByID(id string) (*Account, error) {
 	row := s.db.QueryRow(
-		`SELECT id,username,password_hash,totp_enc,active,pubkey,created_at FROM accounts WHERE id=?`,
+		`SELECT id,username,password_hash,totp_enc,active,pubkey,created_at,COALESCE(enroll_expires_at,'') FROM accounts WHERE id=?`,
 		id,
 	)
-	var a Account
-	var active int
-	var created string
-	if err := row.Scan(&a.ID, &a.Username, &a.PasswordHash, &a.TOTPEnc, &active, &a.Pubkey, &created); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
-		}
-		return nil, err
-	}
-	a.Active = active == 1
-	t, _ := parseTime(created)
-	a.CreatedAt = t
-	return &a, nil
+	return scanAccount(row)
 }
 
 func (s *Store) TOTPSecret(acc *Account) (string, error) {
@@ -588,6 +671,25 @@ func (s *Store) PurgeExpired(now time.Time) (int64, error) {
 	}
 	n, _ := res.RowsAffected()
 	_, _ = s.db.Exec(`UPDATE pending_device_logins SET status='denied' WHERE status='pending' AND expires_at <= ?`, fmtTime(now))
+	// Unfinished TOTP enrollments release the username.
+	rows, err := s.db.Query(`SELECT id FROM accounts WHERE active=0 AND (enroll_expires_at='' OR enroll_expires_at <= ?)`, fmtTime(now))
+	if err != nil {
+		return n, err
+	}
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err == nil {
+			ids = append(ids, id)
+		}
+	}
+	_ = rows.Close()
+	for _, id := range ids {
+		if err := s.deleteAccountRow(id); err != nil {
+			return n, err
+		}
+		n++
+	}
 	if n > 0 {
 		_ = s.SealNow()
 	}

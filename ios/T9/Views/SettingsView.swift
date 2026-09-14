@@ -11,7 +11,7 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 16) {
                 Eyebrow(text: "Local only")
                 Text("Settings")
-                    .font(.system(size: 30, weight: .bold, design: .rounded))
+                    .font(T9Theme.font(30, .bold))
 
                 T9Theme.bezel {
                     VStack(alignment: .leading, spacing: 10) {
@@ -25,24 +25,24 @@ struct SettingsView: View {
                 T9Theme.bezel {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("ENCRYPTED BACKUP")
-                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .font(T9Theme.font(11, .semibold))
                             .tracking(1.4)
                             .foregroundStyle(T9Theme.muted)
                         SecureField("passphrase", text: $passphrase)
                             .padding(12)
-                            .background(RoundedRectangle(cornerRadius: 12).fill(Color(white: 0.94)))
+                            .background(Color.white.overlay(Rectangle().stroke(Color.black, lineWidth: 2)))
                         IslandButton(title: "Export backup", tint: T9Theme.accent) { export() }
                         IslandButton(title: "Restore from paste", tint: T9Theme.teal) { restore() }
                         TextEditor(text: $backupB64)
-                            .font(.system(size: 11, design: .monospaced))
+                            .font(T9Theme.font(11))
                             .frame(minHeight: 80)
                             .padding(8)
-                            .background(RoundedRectangle(cornerRadius: 12).fill(Color(white: 0.94)))
+                            .background(Color.white.overlay(Rectangle().stroke(Color.black, lineWidth: 2)))
                         Text(status)
-                            .font(.system(size: 12, design: .monospaced))
+                            .font(T9Theme.font(12))
                             .foregroundStyle(T9Theme.muted)
                         Text("Restoring keys still requires a fresh web device release.")
-                            .font(.system(size: 12))
+                            .font(T9Theme.font(12))
                             .foregroundStyle(T9Theme.muted)
                     }
                 }
@@ -57,11 +57,11 @@ struct SettingsView: View {
     private func row(_ k: String, _ v: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(k.uppercased())
-                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                .font(T9Theme.font(10, .semibold))
                 .tracking(1.2)
                 .foregroundStyle(T9Theme.muted)
             Text(v)
-                .font(.system(size: 13, design: .monospaced))
+                .font(T9Theme.font(13))
                 .textSelection(.enabled)
         }
     }

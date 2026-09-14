@@ -25,6 +25,8 @@
 		E0BDE59560F94E23AD77C4C7 /* T9App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "T9/App/T9App.swift"; sourceTree = "<group>"; };
 		0F04163B44134C36ACED9C2A /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "T9/Models/Models.swift"; sourceTree = "<group>"; };
 		061C74E4F8434AEBAB013415 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "T9/Resources/Info.plist"; sourceTree = "<group>"; };
+		CA5CAD1A0001C0DEF0010001 /* CascadiaCode.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "T9/Resources/Fonts/CascadiaCode.ttf"; sourceTree = "<group>"; };
+		CA5CAD1A0001C0DEF0010002 /* CascadiaCode.ttf in Resources */ = {isa = PBXBuildFile; fileRef = CA5CAD1A0001C0DEF0010001 /* CascadiaCode.ttf */; };
 		DAD81C16C5F04533A1FE2257 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "T9/Services/APIClient.swift"; sourceTree = "<group>"; };
 		1097785D3F664D89BFA9D9BC /* Crypto.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "T9/Services/Crypto.swift"; sourceTree = "<group>"; };
 		A06D94500CDC4CBFBCDC988D /* Keychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "T9/Services/Keychain.swift"; sourceTree = "<group>"; };
@@ -56,6 +58,7 @@
 				E0BDE59560F94E23AD77C4C7 /* T9App.swift */,
 				0F04163B44134C36ACED9C2A /* Models.swift */,
 				061C74E4F8434AEBAB013415 /* Info.plist */,
+				CA5CAD1A0001C0DEF0010001 /* CascadiaCode.ttf */,
 				DAD81C16C5F04533A1FE2257 /* APIClient.swift */,
 				1097785D3F664D89BFA9D9BC /* Crypto.swift */,
 				A06D94500CDC4CBFBCDC988D /* Keychain.swift */,
@@ -117,6 +120,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CA5CAD1A0001C0DEF0010002 /* CascadiaCode.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

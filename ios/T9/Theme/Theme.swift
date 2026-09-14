@@ -1,52 +1,30 @@
 import SwiftUI
 
 enum T9Theme {
-    static let bg = Color(red: 0.91, green: 0.914, blue: 0.929)
-    static let bg2 = Color(red: 0.957, green: 0.961, blue: 0.973)
-    static let ink = Color(red: 0.071, green: 0.078, blue: 0.102)
-    static let muted = Color(red: 0.361, green: 0.388, blue: 0.439)
+    static let bg = Color(red: 0.925, green: 0.925, blue: 0.925)
+    static let ink = Color(red: 0.067, green: 0.067, blue: 0.067)
+    static let muted = Color(red: 0.29, green: 0.29, blue: 0.29)
     static let accent = Color(red: 0.102, green: 0.361, blue: 1.0)
-    static let teal = Color(red: 0.0, green: 0.639, blue: 0.553)
+    static let teal = Color(red: 0.0, green: 0.522, blue: 0.435)
     static let warn = Color(red: 0.769, green: 0.361, blue: 0.102)
-    static let ease = Animation.timingCurve(0.32, 0.72, 0, 1, duration: 0.55)
+    static let ease = Animation.timingCurve(0.32, 0.72, 0, 1, duration: 0.45)
+
+    static func font(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
+        .custom("Cascadia Code", size: size).weight(weight)
+    }
 
     static func bezel<Content: View>(@ViewBuilder content: () -> Content) -> some View {
         content()
-            .padding(18)
-            .background(
-                RoundedRectangle(cornerRadius: 26, style: .continuous)
-                    .fill(Color.white.opacity(0.98))
-                    .shadow(color: .black.opacity(0.04), radius: 1, y: 1)
-            )
-            .padding(6)
-            .background(
-                RoundedRectangle(cornerRadius: 32, style: .continuous)
-                    .fill(Color.black.opacity(0.05))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 32, style: .continuous)
-                            .stroke(Color.black.opacity(0.08), lineWidth: 1)
-                    )
-            )
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.white)
+            .overlay(Rectangle().stroke(Color.black, lineWidth: 2))
     }
 }
 
 struct T9Background: View {
     var body: some View {
-        LinearGradient(
-            colors: [T9Theme.bg2, T9Theme.bg],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
-        .overlay(
-            RadialGradient(
-                colors: [T9Theme.accent.opacity(0.12), .clear],
-                center: .topLeading,
-                startRadius: 20,
-                endRadius: 420
-            )
-            .ignoresSafeArea()
-        )
+        T9Theme.bg.ignoresSafeArea()
     }
 }
 
@@ -54,13 +32,12 @@ struct Eyebrow: View {
     let text: String
     var body: some View {
         Text(text.uppercased())
-            .font(.system(size: 10, weight: .semibold, design: .rounded))
-            .tracking(2)
-            .foregroundStyle(T9Theme.muted)
-            .padding(.horizontal, 10)
+            .font(T9Theme.font(10, .semibold))
+            .tracking(1.6)
+            .foregroundStyle(T9Theme.ink)
+            .padding(.horizontal, 8)
             .padding(.vertical, 5)
-            .background(Capsule().fill(Color.white.opacity(0.65)))
-            .overlay(Capsule().stroke(Color.black.opacity(0.08), lineWidth: 1))
+            .overlay(Rectangle().stroke(Color.black, lineWidth: 2))
     }
 }
 
@@ -73,20 +50,18 @@ struct IslandButton: View {
         Button(action: action) {
             HStack(spacing: 10) {
                 Text(title)
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
-                ZStack {
-                    Circle().fill(Color.white.opacity(0.16))
-                    Text("↗").font(.system(size: 13, weight: .bold))
-                }
-                .frame(width: 30, height: 30)
+                    .font(T9Theme.font(15, .semibold))
+                Text("↗")
+                    .font(T9Theme.font(13, .bold))
+                    .frame(width: 26, height: 26)
+                    .overlay(Rectangle().stroke(Color.white.opacity(0.5), lineWidth: 1))
             }
             .foregroundStyle(.white)
-            .padding(.leading, 18)
-            .padding(.trailing, 8)
-            .padding(.vertical, 10)
-            .background(Capsule().fill(tint))
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(tint)
+            .overlay(Rectangle().stroke(Color.black, lineWidth: 2))
         }
         .buttonStyle(.plain)
-        .scaleEffect(1)
     }
 }

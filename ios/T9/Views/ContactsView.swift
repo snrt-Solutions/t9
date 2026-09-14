@@ -12,14 +12,14 @@ struct ContactsView: View {
             VStack(alignment: .leading, spacing: 16) {
                 Eyebrow(text: "Physical proximity")
                 Text("Contacts")
-                    .font(.system(size: 30, weight: .bold, design: .rounded))
+                    .font(T9Theme.font(30, .bold))
                 Text("No search. No invites. Scan their QR in person.")
                     .foregroundStyle(T9Theme.muted)
 
                 T9Theme.bezel {
                     VStack(spacing: 12) {
                         Text("MY QR")
-                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .font(T9Theme.font(11, .semibold))
                             .tracking(1.4)
                             .foregroundStyle(T9Theme.muted)
                         if let img = qrImage(for: myQR()) {
@@ -30,7 +30,7 @@ struct ContactsView: View {
                                 .frame(width: 200, height: 200)
                         }
                         Text(myQR())
-                            .font(.system(size: 10, design: .monospaced))
+                            .font(T9Theme.font(10))
                             .foregroundStyle(T9Theme.muted)
                             .textSelection(.enabled)
                     }
@@ -39,23 +39,23 @@ struct ContactsView: View {
                 T9Theme.bezel {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("PASTE / SCAN PAYLOAD")
-                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .font(T9Theme.font(11, .semibold))
                             .tracking(1.4)
                             .foregroundStyle(T9Theme.muted)
                         TextField("t9://contact?u=…", text: $scanPayload)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
-                            .font(.system(size: 13, design: .monospaced))
+                            .font(T9Theme.font(13))
                             .padding(12)
-                            .background(RoundedRectangle(cornerRadius: 12).fill(Color(white: 0.94)))
+                            .background(Color.white.overlay(Rectangle().stroke(Color.black, lineWidth: 2)))
                         IslandButton(title: "Add contact", tint: T9Theme.teal) {
                             addFromPayload()
                         }
                         Text(status)
-                            .font(.system(size: 12, design: .monospaced))
+                            .font(T9Theme.font(12))
                             .foregroundStyle(T9Theme.muted)
                         Text("Camera QR scanning: wire AVFoundation / CodeScanner in a signed build; MVP accepts pasted t9:// payloads.")
-                            .font(.system(size: 12))
+                            .font(T9Theme.font(12))
                             .foregroundStyle(T9Theme.muted)
                     }
                 }
@@ -64,9 +64,9 @@ struct ContactsView: View {
                     T9Theme.bezel {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(c.username)
-                                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                                .font(T9Theme.font(16, .semibold))
                             Text("srv \(c.serverFingerprint)")
-                                .font(.system(size: 11, design: .monospaced))
+                                .font(T9Theme.font(11))
                                 .foregroundStyle(c.serverFingerprint == app.fingerprint ? T9Theme.teal : T9Theme.warn)
                         }
                     }

@@ -21,6 +21,7 @@ struct RootView: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 24)
         }
+        .environment(\.font, T9Theme.font(15))
         .animation(T9Theme.ease, value: app.phase)
     }
 }

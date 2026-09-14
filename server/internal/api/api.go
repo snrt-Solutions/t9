@@ -62,6 +62,7 @@ func (s *Server) routes() {
 	s.Mux.HandleFunc("GET /v1/info", s.handleInfo)
 	s.Mux.HandleFunc("POST /v1/accounts", s.handleCreateAccount)
 	s.Mux.HandleFunc("POST /v1/accounts/totp/confirm", s.handleConfirmTOTP)
+	s.Mux.HandleFunc("POST /v1/accounts/abandon", s.handleAbandonEnrollment)
 	s.Mux.HandleFunc("POST /v1/device/login", s.handleDeviceLogin)
 	s.Mux.HandleFunc("GET /v1/device/login/{id}", s.handleDeviceLoginPoll)
 	s.Mux.HandleFunc("POST /v1/device/release", s.handleDeviceRelease)
@@ -157,7 +158,12 @@ func (s *Server) handleCreateAccount(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, "totp failed")
 		return
 	}
-	acc, err := s.Store.CreateAccountInactive(req.Username, hash, key.Secret())
+	qrPNG, err := auth.TOTPQRDataURL(key.URL())
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "qr failed")
+		return
+	}
+	acc, err := s.Store.CreateAccountInactive(req.Username, hash, key.Secret(), s.Cfg.EnrollTTL)
 	if err != nil {
 		if errors.Is(err, store.ErrConflict) {
 			writeErr(w, http.StatusConflict, "username taken")
@@ -167,13 +173,15 @@ func (s *Server) handleCreateAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{
-		"account_id":    acc.ID,
-		"username":      acc.Username,
-		"totp_secret":   key.Secret(),
-		"totp_uri":      key.URL(),
-		"active":        false,
-		"message":       "Confirm TOTP to finalize. No web session is issued.",
-		"session":       nil,
+		"account_id":  acc.ID,
+		"username":    acc.Username,
+		"totp_secret": key.Secret(),
+		"totp_uri":    key.URL(),
+		"totp_qr_png": qrPNG,
+		"active":      false,
+		"enroll_expires_at": acc.EnrollExpiresAt.UTC().Format(time.RFC3339),
+		"message":     "Confirm TOTP to finalize. Unfinished enrollments expire and free the username. No web session is issued.",
+		"session":     nil,
 	})
 }
 
@@ -212,6 +220,33 @@ func (s *Server) handleConfirmTOTP(w http.ResponseWriter, r *http.Request) {
 		"session": nil,
 		"message": "Account ready. Use the signed app + web release to bind a device.",
 	})
+}
+
+func (s *Server) handleAbandonEnrollment(w http.ResponseWriter, r *http.Request) {
+	var req createAccountReq
+	if _, err := readJSON(r, &req); err != nil {
+		if errors.Is(err, auth.ErrPIIRejected) {
+			writeErr(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		writeErr(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	err := s.Store.AbandonEnrollment(req.Username, req.Password, crypto.VerifyPassword)
+	if err != nil {
+		switch {
+		case errors.Is(err, store.ErrNotFound):
+			writeJSON(w, http.StatusOK, map[string]any{"ok": true, "released": true})
+		case errors.Is(err, store.ErrConflict):
+			writeErr(w, http.StatusConflict, "account already active")
+		case errors.Is(err, store.ErrDenied):
+			writeErr(w, http.StatusUnauthorized, "invalid credentials")
+		default:
+			writeErr(w, http.StatusInternalServerError, "abandon failed")
+		}
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "released": true, "session": nil})
 }
 
 type deviceLoginReq struct {

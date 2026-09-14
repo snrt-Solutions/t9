@@ -9,42 +9,42 @@ struct WaitingReleaseView: View {
         VStack(alignment: .leading, spacing: 18) {
             Eyebrow(text: "Awaiting web release")
             Text("Approve on the site")
-                .font(.system(size: 32, weight: .bold, design: .rounded))
+                .font(T9Theme.font(32, .bold))
             Text("Open the release page, enter your username + live TOTP, and approve this pending ID.")
                 .foregroundStyle(T9Theme.muted)
 
             T9Theme.bezel {
                 VStack(alignment: .leading, spacing: 14) {
                     Text("PENDING ID")
-                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .font(T9Theme.font(11, .semibold))
                         .tracking(1.4)
                         .foregroundStyle(T9Theme.muted)
                     Text(app.pendingID ?? "—")
-                        .font(.system(size: 13, weight: .medium, design: .monospaced))
+                        .font(T9Theme.font(13, .medium))
                         .textSelection(.enabled)
 
                     HStack(spacing: 6) {
                         ForEach(0..<3, id: \.self) { i in
-                            Circle()
+                            Rectangle()
                                 .fill(i == dots % 3 ? T9Theme.teal : T9Theme.accent.opacity(0.35))
                                 .frame(width: 8, height: 8)
-                                .scaleEffect(i == dots % 3 ? 1.15 : 0.85)
+                                .overlay(Rectangle().stroke(Color.black, lineWidth: 1))
                                 .animation(T9Theme.ease, value: dots)
                         }
                         Text("polling")
-                            .font(.system(size: 12, design: .monospaced))
+                            .font(T9Theme.font(12))
                             .foregroundStyle(T9Theme.muted)
                     }
 
                     if let id = app.pendingID {
                         Text("\(app.serverURL)/release.html?pending_id=\(id)")
-                            .font(.system(size: 11, design: .monospaced))
+                            .font(T9Theme.font(11))
                             .foregroundStyle(T9Theme.accent)
                             .textSelection(.enabled)
                     }
 
                     Text(app.statusLine)
-                        .font(.system(size: 12, design: .monospaced))
+                        .font(T9Theme.font(12))
                         .foregroundStyle(T9Theme.muted)
 
                     Button("Cancel") {

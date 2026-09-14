@@ -29,6 +29,10 @@
 	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>Scan contact QR codes in person.</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string>CascadiaCode.ttf</string>
+	</array>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>

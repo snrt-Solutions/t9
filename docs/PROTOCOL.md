@@ -16,10 +16,20 @@ Self-hosted, fetch-once, E2E mailbox. Same-server only. No PII. No web account s
 
 ### Account create (web)
 
-1. `POST /v1/accounts` `{username,password}` → `{totp_secret,totp_uri}` (account **inactive**)
+1. `POST /v1/accounts` `{username,password}` → `{totp_secret,totp_uri,totp_qr_png,enroll_expires_at}` (account **inactive**)
 2. User scans QR / enrolls authenticator
 3. `POST /v1/accounts/totp/confirm` `{username,code}` → account **active**
 4. Response always has `"session": null`. No `Set-Cookie`.
+
+If TOTP is **not** confirmed, the row is deleted and the username is free again:
+
+- Re-`POST /v1/accounts` with the same handle replaces the unfinished enrollment
+- `POST /v1/accounts/abandon` `{username,password}` deletes an inactive enrollment immediately
+- Leaving the create page (beacon) or **Cancel** does the same
+- Background purge deletes inactive rows at `enroll_expires_at` (15 minutes)
+- Confirm after expiry also deletes the leftover row (`404`)
+
+Active accounts are never removed this way.
 
 ### Device bind (app + web release)
 
@@ -65,10 +75,11 @@ Scanning creates a **local** contact only. Server never stores the contact graph
 
 ## Local backup (client)
 
-Encrypted archive (contacts + identity keys + exchange history):
+Encrypted archive of identity keys + contacts (not the device token):
 
-1. Passphrase → Argon2id → AES-256-GCM key
-2. Restore on a new device still requires **web release** to obtain a fresh device token
+1. Format `T9BK1` + 16-byte salt + 12-byte nonce + AES-256-GCM ciphertext/tag
+2. MVP KDF: passphrase + salt → **120,000 iterations of SHA-256** (interim; Argon2 preferred when available on-device)
+3. Restore on a new device still requires **web release** to obtain a fresh device token
 
 ## Database encryption at rest
 
