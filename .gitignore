@@ -1,0 +1,15 @@
+.tools/
+server/data/
+**/data/
+**/.t9.work.db*
+*.sealed
+.env
+deploy/.env
+.DS_Store
+xcuserdata/
+DerivedData/
+*.xcuserstate
+
+.env.bak
+deploy/.env.bak
+.cursor/

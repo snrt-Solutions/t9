@@ -1,0 +1,9 @@
+.tools/
+.git/
+.cursor/
+ios/
+**/.DS_Store
+deploy/.env
+**/data/
+*.md
+!README.md

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>T-9 — release device</title>
+  <link rel="stylesheet" href="/assets/css/t9.css" />
+</head>
+<body>
+  <div class="wrap">
+    <nav class="nav">
+      <div class="brand">T-9<span>device release gate</span></div>
+      <div class="nav-links">
+        <a class="chip" href="/">Create</a>
+        <a class="chip" href="/release.html">Release</a>
+        <a class="chip" href="/status.html">Status</a>
+      </div>
+    </nav>
+
+    <p class="eyebrow">Stateless challenge</p>
+    <h1>Release a pending<br/>device login.</h1>
+    <p class="lede">Username + live TOTP only. Password theft alone cannot bind a mailbox. No session cookie afterward.</p>
+
+    <div class="bezel">
+      <div class="bezel-inner">
+        <form id="release-form">
+          <label for="pending_id">Pending ID</label>
+          <input id="pending_id" required placeholder="uuid from the app" />
+          <label for="username">Username</label>
+          <input id="username" autocomplete="username" required />
+          <label for="code">TOTP code</label>
+          <input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="8" required />
+          <div class="actions">
+            <button class="btn teal" type="submit" data-action="approve">Approve <span class="orb">✓</span></button>
+            <button class="btn warn" type="button" id="deny">Deny <span class="orb">×</span></button>
+          </div>
+        </form>
+        <p class="status" id="status"></p>
+        <p class="note">Waiting app polls until approved, then receives a one-shot device token. Web keeps nothing.</p>
+      </div>
+    </div>
+  </div>
+  <script src="/assets/js/t9.js"></script>
+  <script>
+    const status = document.getElementById("status");
+    const pending = document.getElementById("pending_id");
+    const fromQS = qs("pending_id");
+    if (fromQS) pending.value = fromQS;
+
+    async function release(action) {
+      setStatus(status, "Sending…");
+      try {
+        const data = await api("/v1/device/release", {
+          method: "POST",
+          body: JSON.stringify({
+            username: document.getElementById("username").value.trim(),
+            code: document.getElementById("code").value.trim(),
+            pending_id: pending.value.trim(),
+            action,
+          }),
+        });
+        setStatus(status, "Done: " + data.status + ". No web session retained.", "ok");
+      } catch (err) {
+        setStatus(status, err.message || "failed", "err");
+      }
+    }
+
+    document.getElementById("release-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      release("approve");
+    });
+    document.getElementById("deny").addEventListener("click", () => release("deny"));
+  </script>
+</body>
+</html>

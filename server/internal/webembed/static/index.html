@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>T-9 — create account</title>
+  <link rel="stylesheet" href="/assets/css/t9.css" />
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js" defer></script>
+</head>
+<body>
+  <div class="wrap">
+    <nav class="nav">
+      <div class="brand">T-9<span>fetch-once mailbox</span></div>
+      <div class="nav-links">
+        <a class="chip" href="/">Create</a>
+        <a class="chip" href="/release.html">Release</a>
+        <a class="chip" href="/status.html">Status</a>
+      </div>
+    </nav>
+
+    <p class="eyebrow">No web login · mandatory 2FA</p>
+    <h1>Create a handle.<br/>Enroll TOTP. Done.</h1>
+    <p class="lede">Browsers never get a mailbox session. After TOTP confirm, bind a device from the signed iOS app and release it here.</p>
+
+    <div class="bezel">
+      <div class="bezel-inner">
+        <form id="create-form">
+          <label for="username">Username</label>
+          <input id="username" name="username" autocomplete="username" maxlength="32" pattern="[A-Za-z0-9_]{3,32}" required placeholder="opaque_handle" />
+          <label for="password">Password (10+)</label>
+          <input id="password" name="password" type="password" autocomplete="new-password" minlength="10" required />
+          <div class="actions">
+            <button class="btn accent" type="submit">Create <span class="orb">↗</span></button>
+          </div>
+        </form>
+        <div id="enroll" hidden>
+          <p class="meter">Scan with your authenticator</p>
+          <div class="qr-box"><canvas id="qr"></canvas></div>
+          <label for="secret">TOTP secret</label>
+          <input id="secret" readonly />
+          <label for="code">Enter current code</label>
+          <input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="123456" />
+          <div class="actions">
+            <button class="btn teal" type="button" id="confirm">Confirm TOTP <span class="orb">✓</span></button>
+          </div>
+        </div>
+        <p class="status" id="status"></p>
+        <p class="note">No email. No phone. No cookies. Account finalize does not log you in on the web.</p>
+      </div>
+    </div>
+  </div>
+  <script src="/assets/js/t9.js"></script>
+  <script>
+    const status = document.getElementById("status");
+    let username = "";
+
+    document.getElementById("create-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      setStatus(status, "Creating…");
+      username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value;
+      try {
+        const data = await api("/v1/accounts", {
+          method: "POST",
+          body: JSON.stringify({ username, password }),
+        });
+        document.getElementById("create-form").hidden = true;
+        document.getElementById("enroll").hidden = false;
+        document.getElementById("secret").value = data.totp_secret;
+        if (window.QRCode) {
+          QRCode.toCanvas(document.getElementById("qr"), data.totp_uri, { width: 220, margin: 1 });
+        }
+        setStatus(status, "Scan the QR, then confirm a live code.", "ok");
+      } catch (err) {
+        setStatus(status, err.message || "failed", "err");
+      }
+    });
+
+    document.getElementById("confirm").addEventListener("click", async () => {
+      const code = document.getElementById("code").value.trim();
+      try {
+        await api("/v1/accounts/totp/confirm", {
+          method: "POST",
+          body: JSON.stringify({ username, code }),
+        });
+        setStatus(status, "Account active. Install the signed app, sign in, then open Release to approve the pending device.", "ok");
+      } catch (err) {
+        setStatus(status, err.message || "confirm failed", "err");
+      }
+    });
+  </script>
+</body>
+</html>

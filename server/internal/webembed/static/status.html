@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>T-9 — operator status</title>
+  <link rel="stylesheet" href="/assets/css/t9.css" />
+</head>
+<body>
+  <div class="wrap">
+    <nav class="nav">
+      <div class="brand">T-9<span>operator</span></div>
+      <div class="nav-links">
+        <a class="chip" href="/">Create</a>
+        <a class="chip" href="/release.html">Release</a>
+        <a class="chip" href="/status.html">Status</a>
+      </div>
+    </nav>
+
+    <p class="eyebrow">Public fingerprint</p>
+    <h1>Server pulse <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span></h1>
+    <p class="lede">Health and identity for tunnel checks. This is not an account login.</p>
+
+    <div class="bezel">
+      <div class="bezel-inner">
+        <div class="grid-stats" id="stats">
+          <div class="stat"><span>Loading</span><b>…</b></div>
+        </div>
+        <p class="status" id="status"></p>
+      </div>
+    </div>
+  </div>
+  <script src="/assets/js/t9.js"></script>
+  <script>
+    const status = document.getElementById("status");
+    const stats = document.getElementById("stats");
+    (async () => {
+      try {
+        const [health, info] = await Promise.all([api("/v1/health"), api("/v1/info")]);
+        const rows = [
+          ["Health", health.ok ? "ok" : "down"],
+          ["Base URL", info.base_url],
+          ["Fingerprint", info.fingerprint],
+          ["Fetch-once", String(info.fetch_once)],
+          ["Web login", String(info.web_login)],
+          ["PII", String(info.pii)],
+          ["Max graphemes", String(info.max_graphemes)],
+          ["Message TTL (h)", String(info.message_ttl_h)],
+        ];
+        stats.innerHTML = rows.map(([k,v]) => `<div class="stat"><span>${k}</span><b>${v}</b></div>`).join("");
+        setStatus(status, "Refreshed " + new Date().toISOString(), "ok");
+      } catch (err) {
+        setStatus(status, err.message || "failed", "err");
+      }
+    })();
+  </script>
+</body>
+</html>

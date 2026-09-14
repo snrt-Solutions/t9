@@ -1,0 +1,253 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 56;
+	objects = {
+		842112B93E9C418199488C47 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7F85A6688114F2BB865FBFB /* AppState.swift */; };
+		FBC1024AA59341A2A6AD750D /* T9App.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0BDE59560F94E23AD77C4C7 /* T9App.swift */; };
+		CED40DCC582946A0B069D421 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F04163B44134C36ACED9C2A /* Models.swift */; };
+		0D5243EBEA8948D297D6167B /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAD81C16C5F04533A1FE2257 /* APIClient.swift */; };
+		C4AEE0FDBF0040BDBDCFFA02 /* Crypto.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1097785D3F664D89BFA9D9BC /* Crypto.swift */; };
+		1F4563FBE5F240F097EE2E59 /* Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = A06D94500CDC4CBFBCDC988D /* Keychain.swift */; };
+		4F23CDA8DC464457B6C26F8B /* LocalStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BA39DC61C944D3AB7B42D48 /* LocalStore.swift */; };
+		037BFDE248014A619B595FFF /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C1E86BAA2564958A308DAA3 /* Theme.swift */; };
+		9D3EE3B0A91E4C89962EC50C /* ComposerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BECCBCFF391545259F46920D /* ComposerView.swift */; };
+		9E56E1D47FC14299A71138C6 /* ContactsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D025CE0497E24AD4B60B1C3C /* ContactsView.swift */; };
+		874C3047020740FFA5FC628A /* CredentialsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BD7E139ADC8481A9E559AEF /* CredentialsView.swift */; };
+		D19206C193E94EDABE96A36C /* InboxView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 608740C75D7C45B8B051BFB7 /* InboxView.swift */; };
+		64AAF8D78CAB45B5BD57C7A0 /* MailboxTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53D65F3A4F6046A68E4417A1 /* MailboxTabView.swift */; };
+		085AC80490CC49468FE499F6 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A76F7E2A69EC48D8A1EC2FE4 /* RootView.swift */; };
+		916841A572D54EA585EED5D3 /* ServerURLView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FD6F3CC6FD44A34AE70A8BF /* ServerURLView.swift */; };
+		CB248684A6AD4D6C873A449E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BCEDBC331754F04AD251A28 /* SettingsView.swift */; };
+		AE2BD91EB5F046EB869A0665 /* WaitingReleaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0A3B096E114456C8DE8C680 /* WaitingReleaseView.swift */; };
+		C7F85A6688114F2BB865FBFB /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "T9/App/AppState.swift"; sourceTree = "<group>"; };
+		E0BDE59560F94E23AD77C4C7 /* T9App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "T9/App/T9App.swift"; sourceTree = "<group>"; };
+		0F04163B44134C36ACED9C2A /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "T9/Models/Models.swift"; sourceTree = "<group>"; };
+		061C74E4F8434AEBAB013415 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "T9/Resources/Info.plist"; sourceTree = "<group>"; };
+		DAD81C16C5F04533A1FE2257 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "T9/Services/APIClient.swift"; sourceTree = "<group>"; };
+		1097785D3F664D89BFA9D9BC /* Crypto.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "T9/Services/Crypto.swift"; sourceTree = "<group>"; };
+		A06D94500CDC4CBFBCDC988D /* Keychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "T9/Services/Keychain.swift"; sourceTree = "<group>"; };
+		4BA39DC61C944D3AB7B42D48 /* LocalStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "T9/Services/LocalStore.swift"; sourceTree = "<group>"; };
+		6C1E86BAA2564958A308DAA3 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "T9/Theme/Theme.swift"; sourceTree = "<group>"; };
+		BECCBCFF391545259F46920D /* ComposerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "T9/Views/ComposerView.swift"; sourceTree = "<group>"; };
+		D025CE0497E24AD4B60B1C3C /* ContactsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "T9/Views/ContactsView.swift"; sourceTree = "<group>"; };
+		5BD7E139ADC8481A9E559AEF /* CredentialsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "T9/Views/CredentialsView.swift"; sourceTree = "<group>"; };
+		608740C75D7C45B8B051BFB7 /* InboxView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "T9/Views/InboxView.swift"; sourceTree = "<group>"; };
+		53D65F3A4F6046A68E4417A1 /* MailboxTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "T9/Views/MailboxTabView.swift"; sourceTree = "<group>"; };
+		A76F7E2A69EC48D8A1EC2FE4 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "T9/Views/RootView.swift"; sourceTree = "<group>"; };
+		9FD6F3CC6FD44A34AE70A8BF /* ServerURLView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "T9/Views/ServerURLView.swift"; sourceTree = "<group>"; };
+		7BCEDBC331754F04AD251A28 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "T9/Views/SettingsView.swift"; sourceTree = "<group>"; };
+		A0A3B096E114456C8DE8C680 /* WaitingReleaseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "T9/Views/WaitingReleaseView.swift"; sourceTree = "<group>"; };
+
+		5122609A2B584CF8BD3DFA0A /* T9.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = T9.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C750D69622D74C8A8F64224C = {
+			isa = PBXGroup;
+			children = (
+				1C1947BFD2F64FD08676994B /* T9 */,
+				2B46D22801D74ABB802ADE07 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		1C1947BFD2F64FD08676994B /* T9 */ = {
+			isa = PBXGroup;
+			children = (
+				C7F85A6688114F2BB865FBFB /* AppState.swift */,
+				E0BDE59560F94E23AD77C4C7 /* T9App.swift */,
+				0F04163B44134C36ACED9C2A /* Models.swift */,
+				061C74E4F8434AEBAB013415 /* Info.plist */,
+				DAD81C16C5F04533A1FE2257 /* APIClient.swift */,
+				1097785D3F664D89BFA9D9BC /* Crypto.swift */,
+				A06D94500CDC4CBFBCDC988D /* Keychain.swift */,
+				4BA39DC61C944D3AB7B42D48 /* LocalStore.swift */,
+				6C1E86BAA2564958A308DAA3 /* Theme.swift */,
+				BECCBCFF391545259F46920D /* ComposerView.swift */,
+				D025CE0497E24AD4B60B1C3C /* ContactsView.swift */,
+				5BD7E139ADC8481A9E559AEF /* CredentialsView.swift */,
+				608740C75D7C45B8B051BFB7 /* InboxView.swift */,
+				53D65F3A4F6046A68E4417A1 /* MailboxTabView.swift */,
+				A76F7E2A69EC48D8A1EC2FE4 /* RootView.swift */,
+				9FD6F3CC6FD44A34AE70A8BF /* ServerURLView.swift */,
+				7BCEDBC331754F04AD251A28 /* SettingsView.swift */,
+				A0A3B096E114456C8DE8C680 /* WaitingReleaseView.swift */,
+			);
+			name = T9;
+			sourceTree = "<group>";
+		};
+		2B46D22801D74ABB802ADE07 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				5122609A2B584CF8BD3DFA0A /* T9.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		C899C0BA5ABD4325B244DBBD /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				842112B93E9C418199488C47 /* AppState.swift in Sources */,
+				FBC1024AA59341A2A6AD750D /* T9App.swift in Sources */,
+				CED40DCC582946A0B069D421 /* Models.swift in Sources */,
+				0D5243EBEA8948D297D6167B /* APIClient.swift in Sources */,
+				C4AEE0FDBF0040BDBDCFFA02 /* Crypto.swift in Sources */,
+				1F4563FBE5F240F097EE2E59 /* Keychain.swift in Sources */,
+				4F23CDA8DC464457B6C26F8B /* LocalStore.swift in Sources */,
+				037BFDE248014A619B595FFF /* Theme.swift in Sources */,
+				9D3EE3B0A91E4C89962EC50C /* ComposerView.swift in Sources */,
+				9E56E1D47FC14299A71138C6 /* ContactsView.swift in Sources */,
+				874C3047020740FFA5FC628A /* CredentialsView.swift in Sources */,
+				D19206C193E94EDABE96A36C /* InboxView.swift in Sources */,
+				64AAF8D78CAB45B5BD57C7A0 /* MailboxTabView.swift in Sources */,
+				085AC80490CC49468FE499F6 /* RootView.swift in Sources */,
+				916841A572D54EA585EED5D3 /* ServerURLView.swift in Sources */,
+				CB248684A6AD4D6C873A449E /* SettingsView.swift in Sources */,
+				AE2BD91EB5F046EB869A0665 /* WaitingReleaseView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8E072C1C1A3E43AA95400FB7 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BB0C232539DB43DE99019989 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		30BADD16DD2C408D893F85B6 /* T9 */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5156E246DE3848C4A62515BD /* Build configuration list for PBXNativeTarget "T9" */;
+			buildPhases = (
+				C899C0BA5ABD4325B244DBBD /* Sources */,
+				8E072C1C1A3E43AA95400FB7 /* Frameworks */,
+				BB0C232539DB43DE99019989 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = T9;
+			productName = T9;
+			productReference = 5122609A2B584CF8BD3DFA0A /* T9.app */;
+			productType = "com.apple.product-type.application";
+		};
+		A1B40A77718341F29150A333 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+			};
+			buildConfigurationList = FF15943DA6EF4E5885FEACAE /* Build configuration list for PBXProject "T9" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = C750D69622D74C8A8F64224C;
+			productRefGroup = 2B46D22801D74ABB802ADE07 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				30BADD16DD2C408D893F85B6 /* T9 */,
+			);
+		};
+		BECD22052F30446682F5CAA9 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				GCC_DYNAMIC_NO_PIC = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		98C41C043ADE437EAC2893C6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				COPY_PHASE_STRIP = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		A5A7BF90E0F94B298E62A1B4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = T9/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.t9.messenger;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		C956B9AD19B54705AD1BC6BD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = T9/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.t9.messenger;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		FF15943DA6EF4E5885FEACAE /* Build configuration list for PBXProject "T9" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BECD22052F30446682F5CAA9 /* Debug */,
+				98C41C043ADE437EAC2893C6 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5156E246DE3848C4A62515BD /* Build configuration list for PBXNativeTarget "T9" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A5A7BF90E0F94B298E62A1B4 /* Debug */,
+				C956B9AD19B54705AD1BC6BD /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+	};
+	rootObject = A1B40A77718341F29150A333 /* Project object */;
+}
