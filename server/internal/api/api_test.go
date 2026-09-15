@@ -15,9 +15,11 @@ import (
 
 	"github.com/pquerna/otp/totp"
 	"github.com/t9-messenger/t9/server/internal/api"
+	"github.com/t9-messenger/t9/server/internal/captcha"
 	"github.com/t9-messenger/t9/server/internal/config"
 	"github.com/t9-messenger/t9/server/internal/crypto"
 	"github.com/t9-messenger/t9/server/internal/push"
+	"github.com/t9-messenger/t9/server/internal/ratelimit"
 	"github.com/t9-messenger/t9/server/internal/store"
 	"github.com/t9-messenger/t9/server/internal/webembed"
 )
@@ -32,15 +34,16 @@ func testEnv(t *testing.T) (*api.Server, *store.Store, *config.Config) {
 	}
 	t.Cleanup(func() { _ = st.Close() })
 	cfg := &config.Config{
-		Listen:     ":0",
-		DataDir:    dir,
-		BaseURL:    "http://test.local",
-		DBKey:      key,
-		PendingTTL: 15 * time.Minute,
-		MessageTTL: 24 * time.Hour,
-		EnrollTTL:  15 * time.Minute,
-		PurgeEvery: time.Minute,
-		TokenBytes: 32,
+		Listen:            ":0",
+		DataDir:           dir,
+		BaseURL:           "http://test.local",
+		DBKey:             key,
+		PendingTTL:        15 * time.Minute,
+		MessageTTL:        24 * time.Hour,
+		EnrollTTL:         15 * time.Minute,
+		PurgeEvery:        time.Minute,
+		TokenBytes:        32,
+		RateLimitDisabled: true,
 	}
 	cfg.Fingerprint = st.Fingerprint()
 	srv := api.New(cfg, st, webembed.Handler(), push.NewHub(), nil)
@@ -332,6 +335,106 @@ func TestPIIRejected(t *testing.T) {
 	}, nil)
 	if code != 400 {
 		t.Fatalf("expected 400 got %d %#v", code, out)
+	}
+}
+
+func TestUnknownJSONFieldRejected(t *testing.T) {
+	srv, _, _ := testEnv(t)
+	h := srv.Handler()
+	code, _, out := doJSON(t, h, "POST", "/v1/accounts", map[string]any{
+		"username": "frank2", "password": "password1234", "extra": true,
+	}, nil)
+	if code != 400 || out["error"] != "unknown field" {
+		t.Fatalf("expected unknown field, got %d %#v", code, out)
+	}
+}
+
+func TestConfirmRejectsBadUsername(t *testing.T) {
+	srv, _, _ := testEnv(t)
+	h := srv.Handler()
+	code, _, out := doJSON(t, h, "POST", "/v1/accounts/totp/confirm", map[string]any{
+		"username": "ab", "code": "123456",
+	}, nil)
+	if code != 400 {
+		t.Fatalf("expected 400 got %d %#v", code, out)
+	}
+}
+
+func TestCaptchaRequiredWhenConfigured(t *testing.T) {
+	srv, _, _ := testEnv(t)
+	failSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"success":false}`))
+	}))
+	t.Cleanup(failSrv.Close)
+	okSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"success":true}`))
+	}))
+	t.Cleanup(okSrv.Close)
+
+	srv.Cfg.TurnstileSiteKey = "site"
+	srv.Cfg.TurnstileSecret = "secret"
+	srv.Captcha = &captcha.Turnstile{
+		Secret:    "secret",
+		VerifyURL: failSrv.URL,
+		Client:    failSrv.Client(),
+	}
+
+	code, _, info := doJSON(t, srv.Handler(), "GET", "/v1/info", nil, nil)
+	if code != 200 || info["captcha_required"] != true {
+		t.Fatalf("info captcha: %d %#v", code, info)
+	}
+
+	code, _, out := doJSON(t, srv.Handler(), "POST", "/v1/accounts", map[string]any{
+		"username": "capuser", "password": "password1234",
+	}, nil)
+	if code != 400 || out["error"] != "captcha failed" {
+		t.Fatalf("missing token: %d %#v", code, out)
+	}
+	code, _, out = doJSON(t, srv.Handler(), "POST", "/v1/accounts", map[string]any{
+		"username": "capuser", "password": "password1234",
+		"cf-turnstile-response": "bad",
+	}, nil)
+	if code != 400 {
+		t.Fatalf("bad captcha: %d %#v", code, out)
+	}
+
+	srv.Captcha.VerifyURL = okSrv.URL
+	srv.Captcha.Client = okSrv.Client()
+	code, _, out = doJSON(t, srv.Handler(), "POST", "/v1/accounts", map[string]any{
+		"username": "capuser", "password": "password1234",
+		"cf-turnstile-response": "good",
+	}, nil)
+	if code != 201 {
+		t.Fatalf("good captcha: %d %#v", code, out)
+	}
+}
+
+func TestRateLimitOnAccountCreate(t *testing.T) {
+	srv, _, cfg := testEnv(t)
+	cfg.RateLimitDisabled = false
+	srv.Limiter = ratelimit.New(map[ratelimit.Class]ratelimit.Limit{
+		ratelimit.ClassAuthHeavy: {Rate: 0.001, Burst: 2},
+		ratelimit.ClassAuthLight: {Rate: 100, Burst: 100},
+		ratelimit.ClassMailbox:   {Rate: 100, Burst: 100},
+		ratelimit.ClassGlobal:    {Rate: 100, Burst: 100},
+	})
+	h := srv.Handler()
+	for i := 0; i < 2; i++ {
+		code, _, out := doJSON(t, h, "POST", "/v1/accounts", map[string]any{
+			"username": "rl" + string(rune('a'+i)), "password": "password1234",
+		}, nil)
+		if code != 201 {
+			t.Fatalf("create %d: %d %#v", i, code, out)
+		}
+	}
+	code, hdr, out := doJSON(t, h, "POST", "/v1/accounts", map[string]any{
+		"username": "rlz", "password": "password1234",
+	}, nil)
+	if code != 429 {
+		t.Fatalf("expected 429 got %d %#v", code, out)
+	}
+	if hdr.Get("Retry-After") == "" {
+		t.Fatal("missing Retry-After")
 	}
 }
 

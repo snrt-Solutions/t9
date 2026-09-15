@@ -10,14 +10,14 @@ Operators get accounts without collecting email or phone. Users get a second fac
 
 ## Main Flow
 
-1. Browser `POST /v1/accounts` with `username` and `password`.
-2. Server validates the handle and password, hashes the password (Argon2id), generates a TOTP key (issuer `T9`, 6 digits, 30s, SHA1), and stores an **inactive** row with the TOTP secret column-encrypted.
+1. Browser `POST /v1/accounts` with `username`, `password`, and (when configured) `cf-turnstile-response`.
+2. Server validates the handle and password, rejects unknown JSON keys and PII-shaped fields, verifies Turnstile when `T9_TURNSTILE_SECRET` is set, hashes the password (Argon2id), generates a TOTP key (issuer `T9`, 6 digits, 30s, SHA1), and stores an **inactive** row with the TOTP secret column-encrypted.
 3. Response includes `totp_secret`, `totp_uri`, a PNG QR as `totp_qr_png` (data URL), `enroll_expires_at`, `active: false`, and `"session": null`.
 4. User scans the QR or types the secret into an authenticator.
 5. Browser `POST /v1/accounts/totp/confirm` with `username` and `code`.
 6. Server decrypts the secret, validates TOTP, sets `active=1`, clears enrollment expiry. Still `"session": null`.
 
-The create page (`web/index.html`) also lets the user cancel, which calls abandon so the username is free immediately.
+The create page (`web/index.html`) loads Turnstile when `/v1/info` reports `captcha_required` and a `turnstile_site_key`. Cancel calls abandon so the username is free immediately.
 
 ## Entry Points
 
@@ -29,9 +29,13 @@ The create page (`web/index.html`) also lets the user cancel, which calls abando
 
 ## Rules
 
-- Username: `[A-Za-z0-9_]{3,32}`, case-insensitive uniqueness, no `@`.
+- Username: `[A-Za-z0-9_]{3,32}`, case-insensitive uniqueness, no `@`. Applied on create, confirm, and abandon.
 - Password: 10–128 characters.
+- TOTP confirm/release codes must be exactly 6 digits before crypto checks.
 - JSON must not contain PII-shaped keys (`email`, `phone`, and similar) — `400`.
+- JSON must not contain unknown keys — `400 unknown field`.
+- When Turnstile is configured, missing/invalid captcha → `400 captcha failed` (before Argon2).
+- Per-source rate limits apply (auth-heavy on create); excess → `429` + `Retry-After`.
 - Creating the same username while an **inactive** enrollment exists **replaces** that row (new TOTP secret).
 - Creating the same username when the account is **active** → `409 username taken`.
 - Confirm on an already-active account → `409 already active`.
@@ -46,6 +50,7 @@ The create page (`web/index.html`) also lets the user cancel, which calls abando
 - Confirm after the 15-minute window looks like “account not found” because the row is deleted.
 - Purge can free usernames even if the browser never comes back.
 - Active accounts are never deleted by enroll timeout, abandon, or recreate.
+- Local/dev without `T9_TURNSTILE_SECRET` skips captcha; internet-facing operators should set both Turnstile env vars.
 
 ## Data Involved
 
@@ -55,7 +60,9 @@ Create response fields: `account_id`, `username`, `totp_secret`, `totp_uri`, `to
 
 ## Dependencies
 
-- `auth.ValidateUsername` / `ValidatePassword` / `GenerateTOTP` / `ValidateTOTP` / `TOTPQRDataURL`
+- `auth.ValidateUsername` / `ValidatePassword` / `ValidateTOTPCode` / `GenerateTOTP` / `ValidateTOTP` / `TOTPQRDataURL`
+- `captcha.Turnstile` (optional)
+- `ratelimit` middleware
 - `crypto.HashPassword` / `VerifyPassword`
 - `store.CreateAccountInactive` / `ConfirmTOTP` / `AbandonEnrollment`
 - `github.com/pquerna/otp` and QR PNG via `boombuler/barcode`
@@ -65,8 +72,9 @@ Create response fields: `account_id`, `username`, `totp_secret`, `totp_uri`, `to
 - `server/internal/api/api.go` — `handleCreateAccount`, `handleConfirmTOTP`, `handleAbandonEnrollment`
 - `server/internal/store/store.go` — inactive create, confirm, abandon, purge of expired enrollments
 - `server/internal/auth/auth.go`, `server/internal/auth/qr.go`
+- `server/internal/captcha/turnstile.go`
 - `web/index.html`, `web/js/t9.js`
-- Tests: `TestUnfinishedEnrollmentReleasesUsername`, `TestPIIRejected` in `server/internal/api/api_test.go`
+- Tests: `TestUnfinishedEnrollmentReleasesUsername`, `TestPIIRejected`, `TestUnknownJSONFieldRejected`, `TestCaptchaRequiredWhenConfigured`, `TestRateLimitOnAccountCreate` in `server/internal/api/api_test.go`
 
 ## Related Documentation
 
@@ -74,4 +82,5 @@ Create response fields: `account_id`, `username`, `totp_secret`, `totp_uri`, `to
 - [Identity model](../concepts/identity-model.md)
 - [No web sessions](../concepts/no-web-sessions.md)
 - [TOTP authenticators](../integrations/totp-authenticators.md)
+- [Cloudflare Tunnel](../integrations/cloudflare-tunnel.md)
 - [PROTOCOL.md](../../PROTOCOL.md)

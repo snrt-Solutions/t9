@@ -61,3 +61,24 @@ func TestValidateUsername(t *testing.T) {
 		t.Fatal()
 	}
 }
+
+func TestValidateFields(t *testing.T) {
+	if ValidateTOTPCode("12345") == nil || ValidateTOTPCode("123456") != nil {
+		t.Fatal("totp shape")
+	}
+	if ValidateDeviceID("") == nil || ValidateDeviceID("dev-1") != nil {
+		t.Fatal("device id")
+	}
+	if ValidatePendingID("not") == nil {
+		t.Fatal("pending too short")
+	}
+	if ValidatePendingID("550e8400-e29b-41d4-a716-446655440000") != nil {
+		t.Fatal("uuid pending")
+	}
+	if ValidateAssertion("") == nil || ValidateAssertion("ok") != nil {
+		t.Fatal("assertion")
+	}
+	if RejectUnknownFields(map[string]any{"x": 1}, map[string]struct{}{"y": {}}) == nil {
+		t.Fatal("unknown field")
+	}
+}

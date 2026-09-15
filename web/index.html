@@ -42,6 +42,9 @@
           <input id="username" name="username" autocomplete="username" maxlength="32" pattern="[A-Za-z0-9_]{3,32}" required placeholder="opaque_handle" />
           <label for="password">Password (10+)</label>
           <input id="password" name="password" type="password" autocomplete="new-password" minlength="10" required />
+          <div id="turnstile-wrap" hidden>
+            <div class="cf-turnstile" id="turnstile" data-theme="light"></div>
+          </div>
           <div class="actions">
             <button class="btn accent" type="submit">Create account <span class="orb">↗</span></button>
           </div>
@@ -86,6 +89,8 @@
     let username = "";
     let password = "";
     let enrollOpen = false;
+    let turnstileSiteKey = "";
+    let turnstileWidgetId = null;
 
     function showCreate() {
       enrollOpen = false;
@@ -96,7 +101,59 @@
       document.getElementById("qr-box").replaceChildren();
       document.getElementById("secret").value = "";
       document.getElementById("code").value = "";
+      resetTurnstile();
     }
+
+    function resetTurnstile() {
+      if (turnstileWidgetId != null && window.turnstile) {
+        try { window.turnstile.reset(turnstileWidgetId); } catch (_) {}
+      }
+    }
+
+    function loadTurnstile(siteKey) {
+      turnstileSiteKey = siteKey || "";
+      const wrap = document.getElementById("turnstile-wrap");
+      const el = document.getElementById("turnstile");
+      if (!turnstileSiteKey) {
+        wrap.hidden = true;
+        return;
+      }
+      wrap.hidden = false;
+      el.setAttribute("data-sitekey", turnstileSiteKey);
+      if (window.turnstile && turnstileWidgetId == null) {
+        turnstileWidgetId = window.turnstile.render(el, { sitekey: turnstileSiteKey, theme: "light" });
+        return;
+      }
+      if (document.getElementById("cf-turnstile-script")) return;
+      const s = document.createElement("script");
+      s.id = "cf-turnstile-script";
+      s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+      s.async = true;
+      s.onload = () => {
+        if (window.turnstile && turnstileWidgetId == null) {
+          turnstileWidgetId = window.turnstile.render(el, { sitekey: turnstileSiteKey, theme: "light" });
+        }
+      };
+      document.head.appendChild(s);
+    }
+
+    function turnstileToken() {
+      if (!turnstileSiteKey) return "";
+      if (window.turnstile && turnstileWidgetId != null) {
+        try { return window.turnstile.getResponse(turnstileWidgetId) || ""; } catch (_) { return ""; }
+      }
+      const input = document.querySelector("[name=cf-turnstile-response]");
+      return input ? input.value : "";
+    }
+
+    (async () => {
+      try {
+        const info = await api("/v1/info");
+        if (info.captcha_required && info.turnstile_site_key) {
+          loadTurnstile(info.turnstile_site_key);
+        }
+      } catch (_) { /* local create without captcha */ }
+    })();
 
     async function abandonEnrollment() {
       if (!enrollOpen || !username || !password) return;
@@ -117,10 +174,19 @@
       setStatus(status, "Creating…");
       username = document.getElementById("username").value.trim();
       password = document.getElementById("password").value;
+      const payload = { username, password };
+      const token = turnstileToken();
+      if (turnstileSiteKey) {
+        if (!token) {
+          setStatus(status, "Complete the captcha first.", "err");
+          return;
+        }
+        payload["cf-turnstile-response"] = token;
+      }
       try {
         const data = await api("/v1/accounts", {
           method: "POST",
-          body: JSON.stringify({ username, password }),
+          body: JSON.stringify(payload),
         });
         document.getElementById("create-form").hidden = true;
         document.getElementById("enroll").hidden = false;
@@ -134,6 +200,7 @@
         const until = data.enroll_expires_at ? " Finish before " + data.enroll_expires_at + "." : "";
         setStatus(status, "Scan the QR (or open it in your authenticator), then confirm a live code. Leaving or cancelling deletes this incomplete account." + until, "ok");
       } catch (err) {
+        resetTurnstile();
         setStatus(status, err.message || "failed", "err");
       }
     });

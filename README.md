@@ -254,6 +254,9 @@ Full request shapes: [docs/PROTOCOL.md](docs/PROTOCOL.md) and [docs/knowledge-ba
 | `T9_RESET_DB` | no | unset | `1` / `true` / `yes` / `on` deletes sealed DB on boot |
 | `T9_PORT` | Compose | `8080` | Host port mapping |
 | `T9_APNS_*` | no | unset | Optional APNs HTTP/2 credentials for background push |
+| `T9_TURNSTILE_SITE_KEY` | no | unset | Cloudflare Turnstile site key (create UI) |
+| `T9_TURNSTILE_SECRET` | no | unset | Turnstile secret; empty skips captcha (dev). Set for internet-facing create |
+| `T9_RATE_LIMIT_DISABLED` | no | unset | `1` disables in-process per-source rate limits |
 | Tunnel token | via UI | — | Pasted in setup → `/data/cloudflare.token` for `cloudflared` sidecar |
 
 Hard-coded process timings (not env-tunable in this MVP):
@@ -275,6 +278,7 @@ Hard-coded process timings (not env-tunable in this MVP):
 1. In Zero Trust, create a tunnel: hostname → `http://t9:8080` on the Compose network.
 2. Start Compose (`docker compose up --build`). Open `/setup.html`, set `T9_BASE_URL` to `https://your.hostname`, and paste the tunnel token.
 3. The `cloudflared` sidecar waits for `/data/cloudflare.token` and connects automatically.
+4. Enable Cloudflare WAF / Bot Fight on the hostname; set `T9_TURNSTILE_*` for create captcha. Prefer publishing `127.0.0.1:${T9_PORT}:8080` so origin is not dual-exposed.
 
 ### Data and keys
 

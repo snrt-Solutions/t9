@@ -7,36 +7,51 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"reflect"
 	"strings"
 	"time"
 
 	"github.com/t9-messenger/t9/server/internal/auth"
+	"github.com/t9-messenger/t9/server/internal/captcha"
 	"github.com/t9-messenger/t9/server/internal/config"
 	"github.com/t9-messenger/t9/server/internal/crypto"
 	"github.com/t9-messenger/t9/server/internal/push"
+	"github.com/t9-messenger/t9/server/internal/ratelimit"
 	"github.com/t9-messenger/t9/server/internal/setup"
 	"github.com/t9-messenger/t9/server/internal/store"
 )
 
 type Server struct {
-	Cfg    *config.Config
-	Store  *store.Store // nil while SetupNeeded
-	Mux    *http.ServeMux
-	Static http.Handler
-	Hub    *push.Hub
-	APNs   *push.APNs
+	Cfg     *config.Config
+	Store   *store.Store // nil while SetupNeeded
+	Mux     *http.ServeMux
+	Static  http.Handler
+	Hub     *push.Hub
+	APNs    *push.APNs
+	Limiter *ratelimit.Limiter
+	Captcha *captcha.Turnstile
 	// OnConfigured is called after a successful setup save (usually os.Exit so Docker restarts).
 	OnConfigured func()
 }
 
 func New(cfg *config.Config, st *store.Store, static http.Handler, hub *push.Hub, apns *push.APNs) *Server {
 	s := &Server{Cfg: cfg, Store: st, Mux: http.NewServeMux(), Static: static, Hub: hub, APNs: apns}
+	if cfg != nil && cfg.TurnstileSecret != "" {
+		s.Captcha = &captcha.Turnstile{Secret: cfg.TurnstileSecret}
+	}
+	if cfg == nil || !cfg.RateLimitDisabled {
+		s.Limiter = ratelimit.New(nil)
+	}
 	s.routes()
 	return s
 }
 
 func (s *Server) Handler() http.Handler {
-	return s.noSessionCookies(s.Mux)
+	h := http.Handler(s.Mux)
+	if s.Limiter != nil {
+		h = s.Limiter.Middleware(h)
+	}
+	return s.noSessionCookies(h)
 }
 
 // noSessionCookies strips any Set-Cookie that looks like an account session.
@@ -122,6 +137,33 @@ func writeErr(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, map[string]string{"error": msg})
 }
 
+func jsonFieldNames(dst any) map[string]struct{} {
+	t := reflect.TypeOf(dst)
+	if t == nil {
+		return nil
+	}
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	if t.Kind() != reflect.Struct {
+		return nil
+	}
+	out := make(map[string]struct{})
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+		tag := f.Tag.Get("json")
+		if tag == "" || tag == "-" {
+			continue
+		}
+		name := strings.Split(tag, ",")[0]
+		if name == "" || name == "-" {
+			continue
+		}
+		out[name] = struct{}{}
+	}
+	return out
+}
+
 func readJSON(r *http.Request, dst any) (map[string]any, error) {
 	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 	if err != nil {
@@ -134,10 +176,26 @@ func readJSON(r *http.Request, dst any) (map[string]any, error) {
 	if err := auth.RejectPIIFields(raw); err != nil {
 		return raw, err
 	}
+	if allowed := jsonFieldNames(dst); allowed != nil {
+		if err := auth.RejectUnknownFields(raw, allowed); err != nil {
+			return raw, err
+		}
+	}
 	if err := json.Unmarshal(body, dst); err != nil {
 		return raw, err
 	}
 	return raw, nil
+}
+
+func readJSONErr(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, auth.ErrPIIRejected):
+		writeErr(w, http.StatusBadRequest, err.Error())
+	case errors.Is(err, auth.ErrUnknownField):
+		writeErr(w, http.StatusBadRequest, "unknown field")
+	default:
+		writeErr(w, http.StatusBadRequest, "invalid json")
+	}
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
@@ -149,18 +207,21 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleInfo(w http.ResponseWriter, r *http.Request) {
+	captchaRequired := s.Captcha != nil && s.Captcha.Enabled()
 	writeJSON(w, http.StatusOK, map[string]any{
-		"name":          "t9",
-		"base_url":      s.Cfg.BaseURL,
-		"fingerprint":   s.Cfg.Fingerprint,
-		"message_ttl_h": 24,
-		"max_graphemes": auth.MaxMessageGraphemes,
-		"web_login":     false,
-		"pii":           false,
-		"fetch_once":    true,
-		"one_device":    true,
-		"setup_needed":  s.Cfg.SetupNeeded,
-		"push":          true,
+		"name":               "t9",
+		"base_url":           s.Cfg.BaseURL,
+		"fingerprint":        s.Cfg.Fingerprint,
+		"message_ttl_h":      24,
+		"max_graphemes":      auth.MaxMessageGraphemes,
+		"web_login":          false,
+		"pii":                false,
+		"fetch_once":         true,
+		"one_device":         true,
+		"setup_needed":       s.Cfg.SetupNeeded,
+		"push":               true,
+		"turnstile_site_key": s.Cfg.TurnstileSiteKey,
+		"captcha_required":   captchaRequired,
 	})
 }
 
@@ -171,12 +232,12 @@ func (s *Server) handleSetupGet(w http.ResponseWriter, r *http.Request) {
 		hasTunnel = true
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"configured":      !s.Cfg.SetupNeeded,
-		"base_url":        s.Cfg.BaseURL,
-		"has_db_key":      len(s.Cfg.DBKey) >= 16 || (sf != nil && len(sf.DBKey) >= 16),
+		"configured":       !s.Cfg.SetupNeeded,
+		"base_url":         s.Cfg.BaseURL,
+		"has_db_key":       len(s.Cfg.DBKey) >= 16 || (sf != nil && len(sf.DBKey) >= 16),
 		"has_tunnel_token": hasTunnel || (sf != nil && sf.TunnelToken != ""),
-		"data_dir":        s.Cfg.DataDir,
-		"message":         "Configure public URL and DB key here. No host file edits required.",
+		"data_dir":         s.Cfg.DataDir,
+		"message":          "Configure public URL and DB key here. No host file edits required.",
 	})
 }
 
@@ -189,7 +250,7 @@ type setupPostReq struct {
 func (s *Server) handleSetupPost(w http.ResponseWriter, r *http.Request) {
 	var req setupPostReq
 	if _, err := readJSON(r, &req); err != nil {
-		writeErr(w, http.StatusBadRequest, "invalid json")
+		readJSONErr(w, err)
 		return
 	}
 	base := strings.TrimRight(strings.TrimSpace(req.BaseURL), "/")
@@ -251,7 +312,7 @@ func (s *Server) handlePushToken(w http.ResponseWriter, r *http.Request) {
 		PushToken string `json:"push_token"`
 	}
 	if _, err := readJSON(r, &req); err != nil {
-		writeErr(w, http.StatusBadRequest, "invalid json")
+		readJSONErr(w, err)
 		return
 	}
 	if err := s.Store.SetPushToken(tok, strings.TrimSpace(req.PushToken)); err != nil {
@@ -274,6 +335,12 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 }
 
 type createAccountReq struct {
+	Username          string `json:"username"`
+	Password          string `json:"password"`
+	TurnstileResponse string `json:"cf-turnstile-response"`
+}
+
+type abandonReq struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
@@ -281,11 +348,7 @@ type createAccountReq struct {
 func (s *Server) handleCreateAccount(w http.ResponseWriter, r *http.Request) {
 	var req createAccountReq
 	if _, err := readJSON(r, &req); err != nil {
-		if errors.Is(err, auth.ErrPIIRejected) {
-			writeErr(w, http.StatusBadRequest, err.Error())
-			return
-		}
-		writeErr(w, http.StatusBadRequest, "invalid json")
+		readJSONErr(w, err)
 		return
 	}
 	if err := auth.ValidateUsername(req.Username); err != nil {
@@ -295,6 +358,12 @@ func (s *Server) handleCreateAccount(w http.ResponseWriter, r *http.Request) {
 	if err := auth.ValidatePassword(req.Password); err != nil {
 		writeErr(w, http.StatusBadRequest, err.Error())
 		return
+	}
+	if s.Captcha != nil && s.Captcha.Enabled() {
+		if err := s.Captcha.Verify(r.Context(), req.TurnstileResponse, ratelimit.ClientIP(r)); err != nil {
+			writeErr(w, http.StatusBadRequest, "captcha failed")
+			return
+		}
 	}
 	hash, err := crypto.HashPassword(req.Password)
 	if err != nil {
@@ -321,15 +390,15 @@ func (s *Server) handleCreateAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{
-		"account_id":  acc.ID,
-		"username":    acc.Username,
-		"totp_secret": key.Secret(),
-		"totp_uri":    key.URL(),
-		"totp_qr_png": qrPNG,
-		"active":      false,
+		"account_id":        acc.ID,
+		"username":          acc.Username,
+		"totp_secret":       key.Secret(),
+		"totp_uri":          key.URL(),
+		"totp_qr_png":       qrPNG,
+		"active":            false,
 		"enroll_expires_at": acc.EnrollExpiresAt.UTC().Format(time.RFC3339),
-		"message":     "Confirm TOTP to finalize. Unfinished enrollments expire and free the username. No web session is issued.",
-		"session":     nil,
+		"message":           "Confirm TOTP to finalize. Unfinished enrollments expire and free the username. No web session is issued.",
+		"session":           nil,
 	})
 }
 
@@ -341,11 +410,15 @@ type confirmReq struct {
 func (s *Server) handleConfirmTOTP(w http.ResponseWriter, r *http.Request) {
 	var req confirmReq
 	if _, err := readJSON(r, &req); err != nil {
-		if errors.Is(err, auth.ErrPIIRejected) {
-			writeErr(w, http.StatusBadRequest, err.Error())
-			return
-		}
-		writeErr(w, http.StatusBadRequest, "invalid json")
+		readJSONErr(w, err)
+		return
+	}
+	if err := auth.ValidateUsername(req.Username); err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := auth.ValidateTOTPCode(req.Code); err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	err := s.Store.ConfirmTOTP(req.Username, strings.TrimSpace(req.Code), auth.ValidateTOTP)
@@ -371,13 +444,17 @@ func (s *Server) handleConfirmTOTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleAbandonEnrollment(w http.ResponseWriter, r *http.Request) {
-	var req createAccountReq
+	var req abandonReq
 	if _, err := readJSON(r, &req); err != nil {
-		if errors.Is(err, auth.ErrPIIRejected) {
-			writeErr(w, http.StatusBadRequest, err.Error())
-			return
-		}
-		writeErr(w, http.StatusBadRequest, "invalid json")
+		readJSONErr(w, err)
+		return
+	}
+	if err := auth.ValidateUsername(req.Username); err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := auth.ValidatePassword(req.Password); err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	err := s.Store.AbandonEnrollment(req.Username, req.Password, crypto.VerifyPassword)
@@ -407,15 +484,23 @@ type deviceLoginReq struct {
 func (s *Server) handleDeviceLogin(w http.ResponseWriter, r *http.Request) {
 	var req deviceLoginReq
 	if _, err := readJSON(r, &req); err != nil {
-		if errors.Is(err, auth.ErrPIIRejected) {
-			writeErr(w, http.StatusBadRequest, err.Error())
-			return
-		}
-		writeErr(w, http.StatusBadRequest, "invalid json")
+		readJSONErr(w, err)
 		return
 	}
-	if req.DeviceID == "" || len(req.DeviceID) > 128 {
-		writeErr(w, http.StatusBadRequest, "invalid device_id")
+	if err := auth.ValidateUsername(req.Username); err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := auth.ValidatePassword(req.Password); err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := auth.ValidateDeviceID(req.DeviceID); err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := auth.ValidateAssertion(req.Assertion); err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	acc, err := s.Store.GetAccountByUsername(req.Username)
@@ -427,26 +512,25 @@ func (s *Server) handleDeviceLogin(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusForbidden, "account not active")
 		return
 	}
-	// MVP: accept any non-empty assertion from signed app builds; App Attest later.
-	if strings.TrimSpace(req.Assertion) == "" {
-		writeErr(w, http.StatusBadRequest, "assertion required")
-		return
-	}
 	p, err := s.Store.CreatePendingLogin(acc.ID, req.DeviceID, req.Assertion, s.Cfg.PendingTTL)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, "pending failed")
 		return
 	}
 	writeJSON(w, http.StatusAccepted, map[string]any{
-		"pending_id": p.ID,
-		"status":     "pending",
-		"expires_at": p.ExpiresAt.Format(time.RFC3339),
+		"pending_id":  p.ID,
+		"status":      "pending",
+		"expires_at":  p.ExpiresAt.Format(time.RFC3339),
 		"release_url": s.Cfg.BaseURL + "/release.html?pending_id=" + p.ID,
 	})
 }
 
 func (s *Server) handleDeviceLoginPoll(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
+	if err := auth.ValidatePendingID(id); err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	status, tok, err := s.Store.ConsumePendingPoll(id)
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
@@ -474,11 +558,19 @@ type releaseReq struct {
 func (s *Server) handleDeviceRelease(w http.ResponseWriter, r *http.Request) {
 	var req releaseReq
 	if _, err := readJSON(r, &req); err != nil {
-		if errors.Is(err, auth.ErrPIIRejected) {
-			writeErr(w, http.StatusBadRequest, err.Error())
-			return
-		}
-		writeErr(w, http.StatusBadRequest, "invalid json")
+		readJSONErr(w, err)
+		return
+	}
+	if err := auth.ValidateUsername(req.Username); err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := auth.ValidateTOTPCode(req.Code); err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := auth.ValidatePendingID(req.PendingID); err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	acc, err := s.Store.GetAccountByUsername(req.Username)
@@ -552,11 +644,15 @@ func (s *Server) handleDeviceRevoke(w http.ResponseWriter, r *http.Request) {
 	}
 	var req revokeReq
 	if _, err := readJSON(r, &req); err != nil {
-		if errors.Is(err, auth.ErrPIIRejected) {
-			writeErr(w, http.StatusBadRequest, err.Error())
-			return
-		}
-		writeErr(w, http.StatusBadRequest, "invalid json")
+		readJSONErr(w, err)
+		return
+	}
+	if err := auth.ValidateUsername(req.Username); err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := auth.ValidateTOTPCode(req.Code); err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	acc, err := s.Store.GetAccountByUsername(req.Username)
@@ -607,11 +703,11 @@ func (s *Server) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 	}
 	var req postMsgReq
 	if _, err := readJSON(r, &req); err != nil {
-		if errors.Is(err, auth.ErrPIIRejected) {
-			writeErr(w, http.StatusBadRequest, err.Error())
-			return
-		}
-		writeErr(w, http.StatusBadRequest, "invalid json")
+		readJSONErr(w, err)
+		return
+	}
+	if err := auth.ValidateUsername(req.ToUsername); err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	if req.Graphemes <= 0 || req.Graphemes > auth.MaxMessageGraphemes {
@@ -621,6 +717,10 @@ func (s *Server) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 	ct, err := store.DecodeCiphertextB64(req.Ciphertext)
 	if err != nil || len(ct) == 0 || len(ct) > 4096 {
 		writeErr(w, http.StatusBadRequest, "invalid ciphertext")
+		return
+	}
+	if err := auth.ValidatePubkey(req.Pubkey); err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	recip, err := s.Store.GetAccountByUsername(req.ToUsername)
@@ -663,10 +763,10 @@ func (s *Server) handleGetMessages(w http.ResponseWriter, r *http.Request) {
 	out := make([]map[string]any, 0, len(msgs))
 	for _, m := range msgs {
 		out = append(out, map[string]any{
-			"id":              m.ID,
-			"from_username":   m.SenderUsername,
-			"ciphertext":      store.CiphertextB64(m.Ciphertext),
-			"created_at":      m.CreatedAt.Format(time.RFC3339),
+			"id":            m.ID,
+			"from_username": m.SenderUsername,
+			"ciphertext":    store.CiphertextB64(m.Ciphertext),
+			"created_at":    m.CreatedAt.Format(time.RFC3339),
 		})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"messages": out})

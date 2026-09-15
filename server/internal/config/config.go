@@ -32,6 +32,13 @@ type Config struct {
 	APNsKeyPath string
 	APNsBundle  string
 	APNsProd    bool
+
+	// Cloudflare Turnstile (empty secret = skip captcha; for local/dev).
+	TurnstileSiteKey string
+	TurnstileSecret  string
+
+	// RateLimitDisabled turns off in-process per-source limits (tests / deliberate opt-out).
+	RateLimitDisabled bool
 }
 
 // Load merges environment with t9.setup.json in the data directory.
@@ -71,6 +78,10 @@ func Load() (*Config, error) {
 		APNsKeyPath: os.Getenv("T9_APNS_KEY_PATH"),
 		APNsBundle:  envOr("T9_APNS_BUNDLE_ID", "app.t9.messenger"),
 		APNsProd:    os.Getenv("T9_APNS_PRODUCTION") == "1",
+
+		TurnstileSiteKey:  strings.TrimSpace(os.Getenv("T9_TURNSTILE_SITE_KEY")),
+		TurnstileSecret:   strings.TrimSpace(os.Getenv("T9_TURNSTILE_SECRET")),
+		RateLimitDisabled: os.Getenv("T9_RATE_LIMIT_DISABLED") == "1",
 	}
 
 	if len(key) < 16 {

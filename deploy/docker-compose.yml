@@ -17,8 +17,14 @@ services:
       T9_APNS_KEY_PATH: ${T9_APNS_KEY_PATH:-}
       T9_APNS_BUNDLE_ID: ${T9_APNS_BUNDLE_ID:-app.t9.messenger}
       T9_APNS_PRODUCTION: ${T9_APNS_PRODUCTION:-}
+      T9_TURNSTILE_SITE_KEY: ${T9_TURNSTILE_SITE_KEY:-}
+      T9_TURNSTILE_SECRET: ${T9_TURNSTILE_SECRET:-}
+      T9_RATE_LIMIT_DISABLED: ${T9_RATE_LIMIT_DISABLED:-}
     volumes:
       - t9-data:/data
+    # When using Cloudflare Tunnel as the only public path, prefer:
+    #   - "127.0.0.1:${T9_PORT:-8080}:8080"
+    # so origin traffic cannot bypass the edge WAF.
     ports:
       - "${T9_PORT:-8080}:8080"
 

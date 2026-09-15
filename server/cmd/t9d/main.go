@@ -55,6 +55,14 @@ func main() {
 		log.Printf("setup saved — exiting so Docker restarts with mailbox enabled")
 		os.Exit(0)
 	}
+	if cfg.TurnstileSecret == "" {
+		log.Printf("turnstile: disabled (set T9_TURNSTILE_SECRET for internet-facing create)")
+	} else {
+		log.Printf("turnstile: enabled on account create")
+	}
+	if cfg.RateLimitDisabled {
+		log.Printf("rate limit: disabled")
+	}
 
 	httpSrv := &http.Server{
 		Addr:              cfg.Listen,
