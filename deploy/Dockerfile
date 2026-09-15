@@ -16,7 +16,7 @@ COPY web/img/ ./internal/webembed/static/img/
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/t9d ./cmd/t9d
 
 FROM alpine:3.20
-RUN apk add --no-cache ca-certificates tzdata \
+RUN apk add --no-cache ca-certificates tzdata wget \
   && adduser -D -H -u 10001 t9
 USER t9
 WORKDIR /data

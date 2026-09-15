@@ -95,15 +95,26 @@ Plaintext exists on sending and receiving devices. Between them, the server only
 
 ```bash
 cd deploy
-cp .env.example .env   # optional overrides only
-docker compose up --build
+cp .env.example .env
+# Required secrets in .env (never commit):
+#   CLOUDFLARE_TUNNEL_TOKEN=...
+#   T9_BASE_URL=https://t9.snrt.tech
+#   T9_DB_KEY=...   # ≥16 chars
+docker compose up -d --build
 ```
 
-Open [http://127.0.0.1:8080/setup.html](http://127.0.0.1:8080/setup.html) on first boot. Enter the public base URL, generate a DB seal key, and optionally paste a Cloudflare Tunnel token. Settings are written to the Docker volume (`/data/t9.setup.json`, `/data/cloudflare.token`). The container exits and restarts into mailbox mode. No host file edits required.
+Production path is **private origin**: Compose does **not** publish host ports. Clients use **https://t9.snrt.tech** (Cloudflare Tunnel → `cloudflared` → `http://t9:8080` on the Docker network).
 
-Then open [http://127.0.0.1:8080](http://127.0.0.1:8080) → create a handle → scan the TOTP QR → confirm.
+Full tunnel / DNS steps: [docs/knowledge-base/integrations/cloudflare-tunnel.md](docs/knowledge-base/integrations/cloudflare-tunnel.md).
 
-You can still set `T9_DB_KEY` / `T9_BASE_URL` in `.env` to skip the UI. If boot fails with a decrypt / authentication error, restore the original key, or wipe mailbox data once with `T9_RESET_DB=1 docker compose up --build` (then unset `T9_RESET_DB`).
+Optional first-boot UI on the Docker host only (loopback):
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
+# http://127.0.0.1:8080/setup.html
+```
+
+If boot fails with a decrypt / authentication error, restore the original key, or wipe mailbox data once with `T9_RESET_DB=1 docker compose up -d --build` (then unset `T9_RESET_DB`).
 
 ### Local Go (dev)
 
@@ -189,7 +200,7 @@ Composer seals UTF-8 plaintext to the recipient’s X25519 public key (ephemeral
 |------|------|
 | `server/` | `t9d` HTTP API + embedded web UI |
 | `web/` | Source for create / release / operator pages (copied into the binary) |
-| `deploy/` | Dockerfile, Compose, optional `cloudflared` profile |
+| `deploy/` | Dockerfile, Compose (`t9` + official `cloudflared`), optional local override |
 | `ios/` | SwiftUI MVP client |
 | `docs/` | Protocol, threat model, knowledge base |
 | `scripts/sync-web.sh` | Copy `web/` → `server/internal/webembed/static/` |
@@ -250,14 +261,14 @@ Full request shapes: [docs/PROTOCOL.md](docs/PROTOCOL.md) and [docs/knowledge-ba
 | `T9_DB_KEY` | via UI or env | — | ≥16 chars. Prefer `/setup.html` (stored in volume). Keep stable. |
 | `T9_LISTEN` | no | `:8080` | Bind address |
 | `T9_DATA` | no | `./data` | Sealed DB + setup file (`/data` in Docker) |
-| `T9_BASE_URL` | via UI or env | setup / `http://127.0.0.1:8080` | Public origin used in release URLs |
+| `T9_BASE_URL` | via UI or env | `https://t9.snrt.tech` (Compose default) | Public origin used in release URLs |
 | `T9_RESET_DB` | no | unset | `1` / `true` / `yes` / `on` deletes sealed DB on boot |
-| `T9_PORT` | Compose | `8080` | Host port mapping |
+| `CLOUDFLARE_TUNNEL_TOKEN` | yes (Tunnel) | — | Zero Trust tunnel token → `cloudflared` `TUNNEL_TOKEN`. Never commit |
+| `T9_LOCAL_PORT` | no | `8080` | Only with `docker-compose.local.yml` (loopback publish) |
 | `T9_APNS_*` | no | unset | Optional APNs HTTP/2 credentials for background push |
 | `T9_TURNSTILE_SITE_KEY` | no | unset | Cloudflare Turnstile site key (create UI) |
 | `T9_TURNSTILE_SECRET` | no | unset | Turnstile secret; empty skips captcha (dev). Set for internet-facing create |
 | `T9_RATE_LIMIT_DISABLED` | no | unset | `1` disables in-process per-source rate limits |
-| Tunnel token | via UI | — | Pasted in setup → `/data/cloudflare.token` for `cloudflared` sidecar |
 
 Hard-coded process timings (not env-tunable in this MVP):
 
@@ -271,14 +282,17 @@ Hard-coded process timings (not env-tunable in this MVP):
 
 ## Deployment
 
-`t9d` speaks HTTP. Put TLS in front (Cloudflare Tunnel, Caddy, nginx, or another reverse proxy). The binary does not terminate HTTPS itself.
+`t9d` speaks HTTP. Production TLS is at Cloudflare via Tunnel. The binary does not terminate HTTPS itself.
 
-### Cloudflare Tunnel (no public IP)
+### Cloudflare Tunnel (https://t9.snrt.tech)
 
-1. In Zero Trust, create a tunnel: hostname → `http://t9:8080` on the Compose network.
-2. Start Compose (`docker compose up --build`). Open `/setup.html`, set `T9_BASE_URL` to `https://your.hostname`, and paste the tunnel token.
-3. The `cloudflared` sidecar waits for `/data/cloudflare.token` and connects automatically.
-4. Enable Cloudflare WAF / Bot Fight on the hostname; set `T9_TURNSTILE_*` for create captcha. Prefer publishing `127.0.0.1:${T9_PORT}:8080` so origin is not dual-exposed.
+See the full runbook: [docs/knowledge-base/integrations/cloudflare-tunnel.md](docs/knowledge-base/integrations/cloudflare-tunnel.md).
+
+1. Zero Trust → create tunnel → copy token into `deploy/.env` as `CLOUDFLARE_TUNNEL_TOKEN`.
+2. Public hostname: `t9.snrt.tech` → `http://t9:8080` (HTTP to the Compose service).
+3. Set `T9_BASE_URL=https://t9.snrt.tech` and `T9_DB_KEY`, then `docker compose up -d --build`.
+4. Enable Cloudflare WAF / Bot Fight; set `T9_TURNSTILE_*` for create captcha.
+5. Do **not** publish a public host port for `t9` — default compose uses `expose` only.
 
 ### Data and keys
 

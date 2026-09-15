@@ -8,8 +8,8 @@ services:
     environment:
       T9_LISTEN: ":8080"
       T9_DATA: /data
-      # Optional overrides — prefer first-run UI at /setup.html (writes /data/t9.setup.json)
-      T9_BASE_URL: ${T9_BASE_URL:-}
+      # Prefer https://t9.snrt.tech when the tunnel is the public origin.
+      T9_BASE_URL: ${T9_BASE_URL:-https://t9.snrt.tech}
       T9_DB_KEY: ${T9_DB_KEY:-}
       T9_RESET_DB: ${T9_RESET_DB:-}
       T9_APNS_KEY_ID: ${T9_APNS_KEY_ID:-}
@@ -22,23 +22,36 @@ services:
       T9_RATE_LIMIT_DISABLED: ${T9_RATE_LIMIT_DISABLED:-}
     volumes:
       - t9-data:/data
-    # When using Cloudflare Tunnel as the only public path, prefer:
-    #   - "127.0.0.1:${T9_PORT:-8080}:8080"
-    # so origin traffic cannot bypass the edge WAF.
-    ports:
-      - "${T9_PORT:-8080}:8080"
+    # Private origin: reachable only on the Compose network (not published on the host).
+    expose:
+      - "8080"
+    networks:
+      - t9-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/v1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
 
-  # Waits for token written by setup UI to /data/cloudflare.token
   cloudflared:
-    build:
-      context: ..
-      dockerfile: deploy/cloudflared.Dockerfile
+    image: cloudflare/cloudflared:latest
     container_name: t9-cloudflared
     restart: unless-stopped
-    volumes:
-      - t9-data:/data:ro
+    command: tunnel --no-autoupdate run
+    environment:
+      # Official cloudflared env name; value comes from deploy/.env (never commit).
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?Set CLOUDFLARE_TUNNEL_TOKEN in deploy/.env}
     depends_on:
       - t9
+    networks:
+      - t9-net
+    # Do not mount secrets into the image; do not publish ports.
+    # Public hostname (t9.snrt.tech → http://t9:8080) is configured in Cloudflare Zero Trust.
+
+networks:
+  t9-net:
+    driver: bridge
 
 volumes:
   t9-data:

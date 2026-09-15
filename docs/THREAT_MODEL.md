@@ -48,7 +48,7 @@
 - Backup passphrase strength determines offline key safety
 - Incomplete TOTP enrollments are deleted (timeout, cancel, or replace); they must not park a username
 - Without Turnstile keys, create remains open (dev default); internet-facing nodes should set keys
-- Dual-exposing `:8080` publicly while also using Tunnel bypasses edge WAF
+- Dual-exposing a public host `:8080` while also using Tunnel bypasses edge WAF (default Compose uses `expose` only)
 
 ## Audit notes
 

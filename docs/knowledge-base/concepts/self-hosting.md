@@ -2,33 +2,47 @@
 
 ## Purpose
 
-Run `t9d` so browsers and the iOS app can reach the same origin advertised in `T9_BASE_URL`.
+Run `t9d` so browsers and the iOS app can reach the same origin advertised in `T9_BASE_URL` — for production that is **https://t9.snrt.tech** via Cloudflare Tunnel.
 
 ## Docker (supported path)
 
 From `deploy/`:
 
 ```bash
-cp .env.example .env   # set T9_DB_KEY; optional Turnstile keys for public create
-docker compose up --build
+cp .env.example .env
+# Set CLOUDFLARE_TUNNEL_TOKEN, T9_BASE_URL=https://t9.snrt.tech, T9_DB_KEY=...
+docker compose up -d --build
 ```
 
-Service `t9` publishes `${T9_PORT:-8080}:8080`, volume `t9-data` → `/data`, user `t9` (uid 10001). Image is CGO-free, Alpine, copies `web/` into embed at build. A `cloudflared` sidecar is always defined and activates when a tunnel token is present.
+Services:
 
-When Cloudflare Tunnel is the only public path, bind the published port to loopback so origin traffic cannot bypass the edge WAF:
+| Service | Role |
+|---------|------|
+| `t9` | Application; listens on **8080** inside the container; `expose` only (no host `ports`) |
+| `cloudflared` | Official Cloudflare image; `TUNNEL_TOKEN` from `CLOUDFLARE_TUNNEL_TOKEN` |
 
-```yaml
-ports:
-  - "127.0.0.1:${T9_PORT:-8080}:8080"
+Both join Compose network `t9-net`. Volume `t9-data` → `/data`. User `t9` (uid 10001).
+
+Public hostname routing (`t9.snrt.tech` → `http://t9:8080`) is configured in Cloudflare Zero Trust — see [Cloudflare Tunnel](../integrations/cloudflare-tunnel.md).
+
+Optional loopback admin (not public):
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
+# http://127.0.0.1:8080/setup.html
 ```
 
 ## Environment
 
-See the table in [README.md](../../../README.md#configuration). Required: `T9_DB_KEY` ≥ 16 characters. Keep it backup-safe; rotation without the old key needs `T9_RESET_DB` and **destroys** mailbox state.
+See [README.md](../../../README.md#configuration) and [deploy/.env.example](../../../deploy/.env.example).
 
-`T9_BASE_URL` must be the URL users type into the iOS app and that appears in `release_url`. Wrong values produce pending links that point at localhost behind a tunnel.
+Required for private-origin HTTPS:
 
-Internet-facing nodes should set `T9_TURNSTILE_SITE_KEY` and `T9_TURNSTILE_SECRET`. Without the secret, create captcha is skipped (local/dev). Per-source rate limits are on by default; set `T9_RATE_LIMIT_DISABLED=1` only for deliberate opt-out.
+- `CLOUDFLARE_TUNNEL_TOKEN` — Tunnel token from Zero Trust (never commit)
+- `T9_BASE_URL=https://t9.snrt.tech`
+- `T9_DB_KEY` ≥ 16 characters (or complete setup once via local compose override)
+
+Internet-facing nodes should also set `T9_TURNSTILE_SITE_KEY` / `T9_TURNSTILE_SECRET`. Per-source rate limits are on by default (`T9_RATE_LIMIT_DISABLED=1` to opt out).
 
 ## Local binary
 
@@ -43,7 +57,7 @@ cd server && go run ./cmd/t9d
 
 ## TLS
 
-Put a proxy or [Cloudflare Tunnel](../integrations/cloudflare-tunnel.md) in front. The daemon does not serve HTTPS. Prefer Tunnel + Cloudflare WAF for public exposure; do not dual-publish a public `:8080` alongside the tunnel.
+Default production path: [Cloudflare Tunnel](../integrations/cloudflare-tunnel.md). The daemon does not serve HTTPS. Origin traffic on `t9-net` is HTTP. Do not publish host `:8080` publicly alongside the tunnel.
 
 ## Files in `T9_DATA`
 

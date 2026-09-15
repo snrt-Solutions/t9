@@ -26,25 +26,21 @@
     </nav>
 
     <h1>Public URL + DB key</h1>
-    <p class="lede">Saved to the Docker volume. After save the container restarts and the mailbox comes online. Optional Cloudflare Tunnel token starts the sidecar without editing compose.</p>
+    <p class="lede">Saved to the Docker volume. After save the container restarts and the mailbox comes online. For HTTPS at <code>t9.snrt.tech</code>, set <code>CLOUDFLARE_TUNNEL_TOKEN</code> in <code>deploy/.env</code> (not here) — see the Cloudflare Tunnel docs.</p>
 
     <div class="bezel">
       <div class="bezel-inner">
         <form id="setup-form">
           <label for="base_url">Public base URL</label>
-          <input id="base_url" name="base_url" type="url" required placeholder="https://t9.example.com" />
-          <p class="hint">Use your DNS / Tunnel hostname. Phone and web both need this URL.</p>
+          <input id="base_url" name="base_url" type="url" required placeholder="https://t9.snrt.tech" />
+          <p class="hint">Must match the Cloudflare hostname (e.g. <code>https://t9.snrt.tech</code>).</p>
 
           <label for="db_key">Database seal key (16+)</label>
           <div class="actions" style="margin-bottom:0.5rem">
             <button class="btn" type="button" id="gen-key">Generate key</button>
           </div>
           <input id="db_key" name="db_key" autocomplete="off" minlength="16" required placeholder="long random secret" />
-          <p class="hint">Stored only on the volume. Losing it means a new empty mailbox.</p>
-
-          <label for="tunnel_token">Cloudflare Tunnel token (optional)</label>
-          <textarea id="tunnel_token" name="tunnel_token" rows="3" placeholder="Paste token from Cloudflare Zero Trust → Tunnels"></textarea>
-          <p class="hint">Written to <code>/data/cloudflare.token</code> for the cloudflared sidecar.</p>
+          <p class="hint">Stored only on the volume. Losing it means a new empty mailbox. Prefer setting <code>T9_DB_KEY</code> in <code>deploy/.env</code> for tunnel-first boot.</p>
 
           <div class="actions">
             <button class="btn accent" type="submit">Save and restart <span class="orb">↗</span></button>
@@ -77,7 +73,6 @@
       const body = {
         base_url: document.getElementById("base_url").value.trim(),
         db_key: document.getElementById("db_key").value.trim(),
-        tunnel_token: document.getElementById("tunnel_token").value.trim(),
       };
       try {
         const r = await fetch("/v1/setup", {

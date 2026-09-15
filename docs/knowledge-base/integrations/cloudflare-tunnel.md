@@ -2,61 +2,206 @@
 
 ## Purpose
 
-Expose `t9d` with HTTPS and a public hostname without opening a port on the host firewall. The Compose stack always defines a `cloudflared` sidecar; it waits for a tunnel token written by setup (or env) and stays idle until that token exists.
+Expose `t9d` at **https://t9.snrt.tech** with HTTPS terminated by Cloudflare. The origin stays private: no host port publish, no router port-forward. Traffic path:
 
-## User or Business Value
-
-Home or lab nodes can serve create/release pages and the mailbox API to a signed iOS app on cellular, using Cloudflare as TLS terminator and as the lightweight edge WAF / DDoS layer.
-
-## Main Flow
-
-1. Create a tunnel in Cloudflare Zero Trust.
-2. Route a hostname to `http://t9:8080` (same Docker network as the `t9` service).
-3. Complete setup UI (or set `T9_BASE_URL`) so `/data/cloudflare.token` (or equivalent) is present for the sidecar.
-4. `docker compose up --build` from `deploy/` starts `t9` and `cloudflared`.
-
-The sidecar `depends_on: t9`. It is not required for local-only use (no token → no public hostname).
-
-## Edge WAF and availability
-
-When the public URL is on Cloudflare:
-
-- Enable **WAF managed rules** and **Bot Fight Mode** (Free-tier options where available) on the hostname.
-- Prefer Cloudflare rate-limiting / Bot Management for volumetric abuse; `t9d` still applies hard per-source limits as a second line.
-- Set Cloudflare Turnstile site/secret keys (`T9_TURNSTILE_SITE_KEY`, `T9_TURNSTILE_SECRET`) so account create is challenged.
-- Publish the container port only on loopback when Tunnel is the sole public path, e.g. in Compose:
-
-```yaml
-ports:
-  - "127.0.0.1:${T9_PORT:-8080}:8080"
+```text
+Internet
+    │
+    ▼
+https://t9.snrt.tech
+    │
+    ▼
+Cloudflare (TLS + optional WAF)
+    │
+    │ Cloudflare Tunnel
+    ▼
+cloudflared  (Compose service)
+    │
+    │ http://t9:8080  (Docker network only)
+    ▼
+t9  (T-9 application container)
 ```
 
-Do not dual-expose a public host port and Tunnel — that bypasses the edge WAF.
+## Prerequisites
 
-## Rules
+- Docker + Docker Compose v2
+- Domain `snrt.tech` on Cloudflare DNS
+- Cloudflare Zero Trust access (to create a Tunnel)
+- A machine that can run Compose (home lab / VPS) with outbound HTTPS to Cloudflare (no inbound ports required)
 
-- Tunnel provider can observe connection metadata (threat model: curious CDN). Ciphertext remains opaque; usernames and sizes may still leak at HTTP layer depending on TLS termination.
-- `T9_BASE_URL` must match the public hostname or iOS release links and `/v1/info` will advertise the wrong origin.
-- Token belongs under the data volume / setup UI (gitignored), never in the image.
-- `t9d` trusts `CF-Connecting-IP` only when the immediate TCP peer is private or loopback (typical Docker → app path).
+## Application details (this repo)
 
-## Edge Cases
+| Item | Value |
+|------|--------|
+| Compose service | `t9` |
+| Internal listen | `T9_LISTEN=:8080` → port **8080** |
+| Compose reachability | `http://t9:8080` on network `t9-net` |
+| Host publish | **none** (default). Optional loopback via `docker-compose.local.yml` |
+| Health | `GET /v1/health` (Compose healthcheck) |
+| Tunnel client | Official image `cloudflare/cloudflared:latest` |
+| Token env | `CLOUDFLARE_TUNNEL_TOKEN` → mapped to `TUNNEL_TOKEN` |
 
-- Empty tunnel token leaves `cloudflared` unable to establish a public route; local `127.0.0.1:8080` still works.
-- Older docs mentioning `docker compose --profile tunnel` are obsolete — the sidecar is always defined.
+## 1. Create the Cloudflare Tunnel
 
-## Code Locations
+1. Open [Cloudflare Zero Trust](https://one.dash.cloudflare.com/) → **Networks** → **Tunnels** (or **Access** → **Tunnels**, depending on UI).
+2. **Create a tunnel** → choose **Cloudflared**.
+3. Name it (e.g. `t9`).
+4. Copy the **Tunnel token** (long string). You will put it only in `deploy/.env` — never in git.
 
-- `deploy/docker-compose.yml` service `cloudflared`
-- `deploy/cloudflared.Dockerfile`, `deploy/cloudflared-entrypoint.sh`
-- `deploy/.env.example`
-- `server/internal/ratelimit` (Client-IP + budgets)
-- `server/internal/captcha` (Turnstile)
+## 2. Public hostname (required Dashboard step)
 
-## Related Documentation
+Still in the tunnel configuration, add a **Public Hostname**:
+
+| Field | Value |
+|-------|--------|
+| Subdomain | `t9` |
+| Domain | `snrt.tech` |
+| Type | `HTTP` |
+| URL | `http://t9:8080` |
+
+Notes:
+
+- Service name `t9` is the Compose service name (Docker DNS on `t9-net`).
+- Port `8080` matches `T9_LISTEN` / Dockerfile `EXPOSE`.
+- Scheme is **HTTP** internally; Cloudflare terminates **HTTPS** for clients.
+- Leave **No TLS Verify** irrelevant (origin is plain HTTP).
+
+Save the public hostname. Cloudflare will create/update the DNS record for `t9.snrt.tech` as a **proxied** CNAME to the tunnel (orange cloud).
+
+## 3. DNS check
+
+In Cloudflare Dashboard → **DNS** → `snrt.tech`:
+
+- Record for `t9` should exist, **Proxied** (orange cloud), pointing at the tunnel target Cloudflare manages.
+- Do **not** create an A/AAAA to your home public IP for this hostname if you want private-origin only.
+
+If the hostname was added under the tunnel UI, DNS is usually automatic. If not, add the CNAME Cloudflare shows for that tunnel and keep proxy **on**.
+
+## 4. Configure environment (secrets you must set)
+
+```bash
+cd deploy
+cp .env.example .env
+```
+
+Edit `deploy/.env` (gitignored):
+
+```env
+CLOUDFLARE_TUNNEL_TOKEN=<paste tunnel token from Zero Trust>
+T9_BASE_URL=https://t9.snrt.tech
+T9_DB_KEY=<at least 16 characters, keep backup-safe>
+```
+
+Optional but recommended for public create:
+
+```env
+T9_TURNSTILE_SITE_KEY=...
+T9_TURNSTILE_SECRET=...
+```
+
+**Secrets you configure yourself (never commit):**
+
+- `CLOUDFLARE_TUNNEL_TOKEN`
+- `T9_DB_KEY`
+- Turnstile keys (if used)
+- APNs credentials (if used)
+
+## 5. Start
+
+```bash
+cd deploy
+docker compose up -d --build
+```
+
+Compose refuses to start `cloudflared` if `CLOUDFLARE_TUNNEL_TOKEN` is unset (required substitution).
+
+Verify containers:
+
+```bash
+docker compose ps
+docker compose logs -f cloudflared
+docker compose logs -f t9
+```
+
+Healthy `cloudflared` logs mention a registered connection / tunnel; they must **not** print the token.
+
+## 6. Test reachability
+
+```bash
+curl -fsS https://t9.snrt.tech/v1/health
+curl -fsS https://t9.snrt.tech/v1/info
+```
+
+Expect JSON with `"ok": true` and `"base_url":"https://t9.snrt.tech"`.
+
+Confirm the origin is **not** public on the host:
+
+```bash
+# On the Docker host — nothing should listen on 0.0.0.0:8080 for t9
+ss -ltn | grep 8080 || true
+# From the internet / another network, http://YOUR-PUBLIC-IP:8080 must fail
+```
+
+## 7. Optional local admin (loopback only)
+
+First-boot via browser on the Docker host without using the public hostname:
+
+```bash
+cd deploy
+docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
+```
+
+Then open `http://127.0.0.1:8080/setup.html`. This binds **127.0.0.1 only** — still not a router port-forward. Prefer env (`T9_DB_KEY` + `T9_BASE_URL`) for production so the default compose stays port-free.
+
+## 8. Edge WAF (recommended)
+
+On the Cloudflare zone for `t9.snrt.tech`:
+
+- Enable **WAF** managed rules / **Bot Fight Mode** where available
+- Keep proxy orange-clouded
+- Set Turnstile for account create (`T9_TURNSTILE_*`)
+
+## Troubleshooting
+
+| Symptom | Check |
+|---------|--------|
+| `CLOUDFLARE_TUNNEL_TOKEN` error on compose | Token missing in `deploy/.env` |
+| `cloudflared` restart loop | Invalid/expired token; recreate token in Zero Trust |
+| 502 Bad Gateway | Public hostname URL wrong (must be `http://t9:8080`); `t9` not on same network; app still in setup / crash |
+| Wrong release links | `T9_BASE_URL` must be `https://t9.snrt.tech` |
+| Decrypt / auth failed on boot | Wrong `T9_DB_KEY`; restore key or one-shot `T9_RESET_DB=1` then unset |
+| Setup UI unreachable | Default compose has **no** host ports — use `.env` boot or `docker-compose.local.yml` |
+
+### cloudflared logs
+
+```bash
+cd deploy
+docker compose logs -f cloudflared
+docker compose logs --tail=200 cloudflared
+```
+
+### Restart policies
+
+Both services use `restart: unless-stopped`. `cloudflared` `depends_on: t9` waits for **start**, not health — so a slow app boot does not block the tunnel client from starting.
+
+## Security (private origin)
+
+- No `ports:` on `t9` in the default compose file — only `expose: "8080"` on `t9-net`
+- No router port-forward required or desired
+- Token only in `deploy/.env` (gitignored); not in images or compose literals
+- TLS only at Cloudflare; origin speaks HTTP on the private Docker network
+- Do not dual-publish a public host port alongside the tunnel
+
+## Code locations
+
+- [`deploy/docker-compose.yml`](../../deploy/docker-compose.yml) — `t9` + `cloudflared` + `t9-net`
+- [`deploy/docker-compose.local.yml`](../../deploy/docker-compose.local.yml) — optional loopback publish
+- [`deploy/.env.example`](../../deploy/.env.example)
+- [`deploy/Dockerfile`](../../deploy/Dockerfile) — app listens on 8080
+
+## Related documentation
 
 - [Self-hosting](../concepts/self-hosting.md)
 - [Trust boundaries](../concepts/trust-boundaries.md)
-- [Operator status](../functionalities/operator-status.md)
-- [Account creation](../functionalities/account-creation.md)
 - [THREAT_MODEL.md](../../THREAT_MODEL.md)
+- [README.md](../../README.md)
