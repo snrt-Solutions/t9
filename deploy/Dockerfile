@@ -12,6 +12,7 @@ COPY web/index.html web/release.html web/status.html web/setup.html ./internal/w
 COPY web/css/ ./internal/webembed/static/css/
 COPY web/js/ ./internal/webembed/static/js/
 COPY web/fonts/ ./internal/webembed/static/fonts/
+COPY web/img/ ./internal/webembed/static/img/
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/t9d ./cmd/t9d
 
 FROM alpine:3.20

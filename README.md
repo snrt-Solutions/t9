@@ -1,5 +1,9 @@
 # T-9
 
+<p align="center">
+  <img src="brand/t9-mark.png" alt="T-9" width="160" height="160" />
+</p>
+
 **Fetch-once messaging. Pure privacy but feels like SMS.** Self-host a blind Go mailbox. Ciphertext lives only on a signed iOS app. Browsers can create accounts, enroll TOTP, and release a pending device login — they never receive a mailbox session.
 
 T-9 is a same-server, no-PII messenger for people who want short sealed notes that disappear from the host after they are read. It is not a social network, not a webmail client, and not a multi-device chat platform.
