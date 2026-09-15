@@ -6,24 +6,31 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/t9-messenger/t9/server/internal/auth"
 	"github.com/t9-messenger/t9/server/internal/config"
 	"github.com/t9-messenger/t9/server/internal/crypto"
+	"github.com/t9-messenger/t9/server/internal/push"
+	"github.com/t9-messenger/t9/server/internal/setup"
 	"github.com/t9-messenger/t9/server/internal/store"
 )
 
 type Server struct {
-	Cfg   *config.Config
-	Store *store.Store
-	Mux   *http.ServeMux
+	Cfg    *config.Config
+	Store  *store.Store // nil while SetupNeeded
+	Mux    *http.ServeMux
 	Static http.Handler
+	Hub    *push.Hub
+	APNs   *push.APNs
+	// OnConfigured is called after a successful setup save (usually os.Exit so Docker restarts).
+	OnConfigured func()
 }
 
-func New(cfg *config.Config, st *store.Store, static http.Handler) *Server {
-	s := &Server{Cfg: cfg, Store: st, Mux: http.NewServeMux(), Static: static}
+func New(cfg *config.Config, st *store.Store, static http.Handler, hub *push.Hub, apns *push.APNs) *Server {
+	s := &Server{Cfg: cfg, Store: st, Mux: http.NewServeMux(), Static: static, Hub: hub, APNs: apns}
 	s.routes()
 	return s
 }
@@ -60,18 +67,47 @@ func (c *cookieFilter) Write(b []byte) (int, error) {
 func (s *Server) routes() {
 	s.Mux.HandleFunc("GET /v1/health", s.handleHealth)
 	s.Mux.HandleFunc("GET /v1/info", s.handleInfo)
-	s.Mux.HandleFunc("POST /v1/accounts", s.handleCreateAccount)
-	s.Mux.HandleFunc("POST /v1/accounts/totp/confirm", s.handleConfirmTOTP)
-	s.Mux.HandleFunc("POST /v1/accounts/abandon", s.handleAbandonEnrollment)
-	s.Mux.HandleFunc("POST /v1/device/login", s.handleDeviceLogin)
-	s.Mux.HandleFunc("GET /v1/device/login/{id}", s.handleDeviceLoginPoll)
-	s.Mux.HandleFunc("POST /v1/device/release", s.handleDeviceRelease)
-	s.Mux.HandleFunc("POST /v1/device/revoke", s.handleDeviceRevoke)
-	s.Mux.HandleFunc("POST /v1/messages", s.handlePostMessage)
-	s.Mux.HandleFunc("GET /v1/messages", s.handleGetMessages)
+	s.Mux.HandleFunc("GET /v1/setup", s.handleSetupGet)
+	s.Mux.HandleFunc("POST /v1/setup", s.handleSetupPost)
+	s.Mux.HandleFunc("POST /v1/setup/generate-key", s.handleSetupGenerateKey)
+
+	s.Mux.HandleFunc("POST /v1/accounts", s.requireReady(s.handleCreateAccount))
+	s.Mux.HandleFunc("POST /v1/accounts/totp/confirm", s.requireReady(s.handleConfirmTOTP))
+	s.Mux.HandleFunc("POST /v1/accounts/abandon", s.requireReady(s.handleAbandonEnrollment))
+	s.Mux.HandleFunc("POST /v1/device/login", s.requireReady(s.handleDeviceLogin))
+	s.Mux.HandleFunc("GET /v1/device/login/{id}", s.requireReady(s.handleDeviceLoginPoll))
+	s.Mux.HandleFunc("POST /v1/device/release", s.requireReady(s.handleDeviceRelease))
+	s.Mux.HandleFunc("POST /v1/device/revoke", s.requireReady(s.handleDeviceRevoke))
+	s.Mux.HandleFunc("POST /v1/device/push-token", s.requireReady(s.handlePushToken))
+	s.Mux.HandleFunc("GET /v1/events", s.requireReady(s.handleEvents))
+	s.Mux.HandleFunc("POST /v1/messages", s.requireReady(s.handlePostMessage))
+	s.Mux.HandleFunc("GET /v1/messages", s.requireReady(s.handleGetMessages))
 	if s.Static != nil {
-		s.Mux.Handle("GET /", s.Static)
+		s.Mux.HandleFunc("GET /{$}", s.handleRoot)
+		s.Mux.Handle("GET /setup.html", s.Static)
+		s.Mux.Handle("GET /release.html", s.Static)
+		s.Mux.Handle("GET /status.html", s.Static)
 		s.Mux.Handle("GET /assets/", s.Static)
+	}
+}
+
+func (s *Server) requireReady(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if s.Cfg.SetupNeeded || s.Store == nil {
+			writeErr(w, http.StatusServiceUnavailable, "server setup required — open /setup.html")
+			return
+		}
+		next(w, r)
+	}
+}
+
+func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
+	if s.Cfg.SetupNeeded {
+		http.Redirect(w, r, "/setup.html", http.StatusFound)
+		return
+	}
+	if s.Static != nil {
+		s.Static.ServeHTTP(w, r)
 	}
 }
 
@@ -106,23 +142,135 @@ func readJSON(r *http.Request, dst any) (map[string]any, error) {
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
-		"ok":   true,
-		"time": time.Now().UTC().Format(time.RFC3339),
+		"ok":           true,
+		"setup_needed": s.Cfg.SetupNeeded,
+		"time":         time.Now().UTC().Format(time.RFC3339),
 	})
 }
 
 func (s *Server) handleInfo(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
-		"name":            "t9",
-		"base_url":        s.Cfg.BaseURL,
-		"fingerprint":     s.Store.Fingerprint(),
-		"message_ttl_h":   24,
-		"max_graphemes":   auth.MaxMessageGraphemes,
-		"web_login":       false,
-		"pii":             false,
-		"fetch_once":      true,
-		"one_device":      true,
+		"name":          "t9",
+		"base_url":      s.Cfg.BaseURL,
+		"fingerprint":   s.Cfg.Fingerprint,
+		"message_ttl_h": 24,
+		"max_graphemes": auth.MaxMessageGraphemes,
+		"web_login":     false,
+		"pii":           false,
+		"fetch_once":    true,
+		"one_device":    true,
+		"setup_needed":  s.Cfg.SetupNeeded,
+		"push":          true,
 	})
+}
+
+func (s *Server) handleSetupGet(w http.ResponseWriter, r *http.Request) {
+	sf, _ := setup.Load(s.Cfg.DataDir)
+	hasTunnel := false
+	if _, err := os.Stat(setup.TunnelPath(s.Cfg.DataDir)); err == nil {
+		hasTunnel = true
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"configured":      !s.Cfg.SetupNeeded,
+		"base_url":        s.Cfg.BaseURL,
+		"has_db_key":      len(s.Cfg.DBKey) >= 16 || (sf != nil && len(sf.DBKey) >= 16),
+		"has_tunnel_token": hasTunnel || (sf != nil && sf.TunnelToken != ""),
+		"data_dir":        s.Cfg.DataDir,
+		"message":         "Configure public URL and DB key here. No host file edits required.",
+	})
+}
+
+type setupPostReq struct {
+	BaseURL     string `json:"base_url"`
+	DBKey       string `json:"db_key"`
+	TunnelToken string `json:"tunnel_token"`
+}
+
+func (s *Server) handleSetupPost(w http.ResponseWriter, r *http.Request) {
+	var req setupPostReq
+	if _, err := readJSON(r, &req); err != nil {
+		writeErr(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	base := strings.TrimRight(strings.TrimSpace(req.BaseURL), "/")
+	if base == "" {
+		writeErr(w, http.StatusBadRequest, "base_url required")
+		return
+	}
+	key := strings.TrimSpace(req.DBKey)
+	if key == "" {
+		if sf, _ := setup.Load(s.Cfg.DataDir); sf != nil && sf.DBKey != "" {
+			key = sf.DBKey
+		}
+	}
+	if len(os.Getenv("T9_DB_KEY")) >= 16 && key == "" {
+		key = os.Getenv("T9_DB_KEY")
+	}
+	if len(key) < 16 {
+		writeErr(w, http.StatusBadRequest, "db_key must be at least 16 characters")
+		return
+	}
+	f := &setup.File{
+		BaseURL:     base,
+		DBKey:       key,
+		TunnelToken: strings.TrimSpace(req.TunnelToken),
+	}
+	if err := setup.Save(s.Cfg.DataDir, f); err != nil {
+		writeErr(w, http.StatusInternalServerError, "save failed")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"ok":      true,
+		"message": "Saved to volume. Server is restarting to apply mailbox config.",
+	})
+	if s.OnConfigured != nil {
+		go func() {
+			time.Sleep(300 * time.Millisecond)
+			s.OnConfigured()
+		}()
+	}
+}
+
+func (s *Server) handleSetupGenerateKey(w http.ResponseWriter, r *http.Request) {
+	k, err := setup.GenerateDBKey()
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "generate failed")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"db_key": k})
+}
+
+func (s *Server) handlePushToken(w http.ResponseWriter, r *http.Request) {
+	authz := r.Header.Get("Authorization")
+	if !strings.HasPrefix(strings.ToLower(authz), "bearer ") {
+		writeErr(w, http.StatusUnauthorized, "device token required")
+		return
+	}
+	tok := strings.TrimSpace(authz[7:])
+	var req struct {
+		PushToken string `json:"push_token"`
+	}
+	if _, err := readJSON(r, &req); err != nil {
+		writeErr(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	if err := s.Store.SetPushToken(tok, strings.TrimSpace(req.PushToken)); err != nil {
+		writeErr(w, http.StatusUnauthorized, "invalid device token")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
+	_, acc, ok := s.requireDevice(w, r)
+	if !ok {
+		return
+	}
+	if s.Hub == nil {
+		writeErr(w, http.StatusServiceUnavailable, "events unavailable")
+		return
+	}
+	s.Hub.ServeSSE(w, r, acc.ID)
 }
 
 type createAccountReq struct {
@@ -487,6 +635,14 @@ func (s *Server) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, "store failed")
 		return
+	}
+	if s.Hub != nil {
+		s.Hub.Notify(recip.ID, "message")
+	}
+	if s.APNs != nil {
+		if pt, err := s.Store.PushTokenForAccount(recip.ID); err == nil && pt != "" {
+			go s.APNs.Notify(pt)
+		}
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{
 		"id":         msg.ID,

@@ -29,6 +29,12 @@
 	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>Scan contact QR codes in person.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Unlock the T-9 mailbox with Face ID or your device passcode.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 	<key>UIAppFonts</key>
 	<array>
 		<string>CascadiaCode.ttf</string>

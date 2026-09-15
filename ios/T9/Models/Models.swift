@@ -23,6 +23,8 @@ struct ServerInfo: Codable {
     var max_graphemes: Int?
     var web_login: Bool?
     var fetch_once: Bool?
+    var setup_needed: Bool?
+    var push: Bool?
 }
 
 struct CreateAccountResponse: Codable {

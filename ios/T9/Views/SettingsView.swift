@@ -8,62 +8,67 @@ struct SettingsView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                Eyebrow(text: "Local only")
-                Text("Settings")
-                    .font(T9Theme.font(30, .bold))
-
-                T9Theme.bezel {
+            ScreenChrome(title: "Settings", subtitle: "Local keys and device session only.") {
+                VStack(alignment: .leading, spacing: 20) {
                     VStack(alignment: .leading, spacing: 10) {
-                        row("Server", app.serverURL)
-                        row("User", app.username)
-                        row("Fingerprint", app.fingerprint)
-                        row("Pubkey", String(app.keys.publicKeyB64().prefix(24)) + "…")
+                        meta("Server", app.serverURL)
+                        RowDivider()
+                        meta("User", app.username)
+                        RowDivider()
+                        meta("Fingerprint", app.fingerprint)
+                        RowDivider()
+                        meta("Pubkey", String(app.keys.publicKeyB64().prefix(24)) + "…")
+                        RowDivider()
+                        meta("Push", app.pushOnline ? "SSE online" : "offline")
                     }
-                }
 
-                T9Theme.bezel {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("ENCRYPTED BACKUP")
-                            .font(T9Theme.font(11, .semibold))
-                            .tracking(1.4)
-                            .foregroundStyle(T9Theme.muted)
+                        FieldLabel(text: "Encrypted backup")
                         SecureField("passphrase", text: $passphrase)
-                            .padding(12)
-                            .background(Color.white.overlay(Rectangle().stroke(Color.black, lineWidth: 2)))
-                        IslandButton(title: "Export backup", tint: T9Theme.accent) { export() }
-                        IslandButton(title: "Restore from paste", tint: T9Theme.teal) { restore() }
+                            .t9Field()
+                        PrimaryButton(title: "Export backup", tint: T9Theme.accent) { export() }
+                        PrimaryButton(title: "Restore from paste", tint: T9Theme.teal) { restore() }
                         TextEditor(text: $backupB64)
                             .font(T9Theme.font(11))
                             .frame(minHeight: 80)
                             .padding(8)
-                            .background(Color.white.overlay(Rectangle().stroke(Color.black, lineWidth: 2)))
-                        Text(status)
-                            .font(T9Theme.font(12))
-                            .foregroundStyle(T9Theme.muted)
+                            .scrollContentBackground(.hidden)
+                            .background(T9Theme.surface)
+                            .overlay(Rectangle().stroke(T9Theme.hair, lineWidth: T9Theme.stroke))
                         Text("Restoring keys still requires a fresh web device release.")
                             .font(T9Theme.font(12))
                             .foregroundStyle(T9Theme.muted)
                     }
-                }
 
-                IslandButton(title: "Revoke device token", tint: T9Theme.warn) {
-                    Task { await revoke() }
+                    if !status.isEmpty {
+                        Text(status)
+                            .font(T9Theme.font(12))
+                            .foregroundStyle(T9Theme.muted)
+                    }
+
+                    PrimaryButton(title: "Lock now", tint: T9Theme.ink) {
+                        app.lockMailbox()
+                    }
+
+                    PrimaryButton(title: "Revoke device token", tint: T9Theme.warn) {
+                        Task { await revoke() }
+                    }
                 }
             }
         }
     }
 
-    private func row(_ k: String, _ v: String) -> some View {
+    private func meta(_ k: String, _ v: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(k.uppercased())
                 .font(T9Theme.font(10, .semibold))
                 .tracking(1.2)
                 .foregroundStyle(T9Theme.muted)
-            Text(v)
+            Text(v.isEmpty ? "-" : v)
                 .font(T9Theme.font(13))
                 .textSelection(.enabled)
         }
+        .padding(.vertical, 4)
     }
 
     private func export() {
@@ -76,7 +81,7 @@ struct SettingsView: View {
                 contacts: app.contacts
             )
             backupB64 = data.base64EncodedString()
-            status = "backup ready — copy the blob"
+            status = "backup ready - copy the blob"
         } catch {
             status = error.localizedDescription
         }
@@ -94,7 +99,7 @@ struct SettingsView: View {
             app.contacts = res.contacts
             app.store.saveContacts(res.contacts)
             _ = app.keys.loadOrCreateIdentity()
-            status = "restored keys+contacts — re-release device on web"
+            status = "restored keys+contacts - re-release device on web"
         } catch {
             status = error.localizedDescription
         }
@@ -106,6 +111,8 @@ struct SettingsView: View {
             try await app.api.revoke(base: app.serverURL, token: tok)
             Keychain.delete("device_token")
             app.deviceToken = nil
+            app.stopPush()
+            app.unlocked = false
             app.phase = .server
             status = "revoked"
         } catch {

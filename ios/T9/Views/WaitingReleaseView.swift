@@ -6,55 +6,48 @@ struct WaitingReleaseView: View {
     @State private var timer: Timer?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Eyebrow(text: "Awaiting web release")
-            Text("Approve on the site")
-                .font(T9Theme.font(32, .bold))
-            Text("Open the release page, enter your username + live TOTP, and approve this pending ID.")
-                .foregroundStyle(T9Theme.muted)
+        ScreenChrome(
+            title: "Approve on the site",
+            subtitle: "Open the release page, enter username + live TOTP, and approve this pending ID."
+        ) {
+            VStack(alignment: .leading, spacing: 16) {
+                FieldLabel(text: "Pending ID")
+                Text(app.pendingID ?? "-")
+                    .font(T9Theme.font(13, .medium))
+                    .textSelection(.enabled)
+                    .padding(14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(T9Theme.surface)
+                    .overlay(Rectangle().stroke(T9Theme.hair, lineWidth: T9Theme.stroke))
 
-            T9Theme.bezel {
-                VStack(alignment: .leading, spacing: 14) {
-                    Text("PENDING ID")
-                        .font(T9Theme.font(11, .semibold))
-                        .tracking(1.4)
-                        .foregroundStyle(T9Theme.muted)
-                    Text(app.pendingID ?? "—")
-                        .font(T9Theme.font(13, .medium))
-                        .textSelection(.enabled)
-
-                    HStack(spacing: 6) {
-                        ForEach(0..<3, id: \.self) { i in
-                            Rectangle()
-                                .fill(i == dots % 3 ? T9Theme.teal : T9Theme.accent.opacity(0.35))
-                                .frame(width: 8, height: 8)
-                                .overlay(Rectangle().stroke(Color.black, lineWidth: 1))
-                                .animation(T9Theme.ease, value: dots)
-                        }
-                        Text("polling")
-                            .font(T9Theme.font(12))
-                            .foregroundStyle(T9Theme.muted)
+                HStack(spacing: 6) {
+                    ForEach(0..<3, id: \.self) { i in
+                        Rectangle()
+                            .fill(i == dots % 3 ? T9Theme.teal : T9Theme.ink.opacity(0.2))
+                            .frame(width: 10, height: 10)
+                            .animation(T9Theme.ease, value: dots)
                     }
-
-                    if let id = app.pendingID {
-                        Text("\(app.serverURL)/release.html?pending_id=\(id)")
-                            .font(T9Theme.font(11))
-                            .foregroundStyle(T9Theme.accent)
-                            .textSelection(.enabled)
-                    }
-
-                    Text(app.statusLine)
+                    Text("polling")
                         .font(T9Theme.font(12))
                         .foregroundStyle(T9Theme.muted)
+                }
 
-                    Button("Cancel") {
-                        stop()
-                        app.phase = .credentials
-                    }
+                if let id = app.pendingID {
+                    Text("\(app.serverURL)/release.html?pending_id=\(id)")
+                        .font(T9Theme.font(11))
+                        .foregroundStyle(T9Theme.accent)
+                        .textSelection(.enabled)
+                }
+
+                Text(app.statusLine)
+                    .font(T9Theme.font(12))
                     .foregroundStyle(T9Theme.muted)
+
+                GhostButton(title: "Cancel") {
+                    stop()
+                    app.phase = .credentials
                 }
             }
-            Spacer()
         }
         .onAppear { start() }
         .onDisappear { stop() }
@@ -85,6 +78,7 @@ struct WaitingReleaseView: View {
                 Keychain.set("device_token", value: tok)
                 app.deviceToken = tok
                 stop()
+                app.unlocked = false
                 app.phase = .mailbox
             } else if res.status == "denied" {
                 app.statusLine = "denied on web"

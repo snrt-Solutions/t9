@@ -5,9 +5,11 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/t9-messenger/t9/server/internal/setup"
 )
 
-// Config holds process configuration from the environment.
+// Config holds process configuration from env + optional /data setup file.
 type Config struct {
 	Listen  string
 	DataDir string
@@ -19,30 +21,64 @@ type Config struct {
 	EnrollTTL   time.Duration
 	PurgeEvery  time.Duration
 	TokenBytes  int
-	Fingerprint string // set after store open from server identity
+	Fingerprint string
+
+	// SetupNeeded means mailbox is offline until the operator finishes /setup.html.
+	SetupNeeded bool
+
+	// Optional APNs (HTTP/2 token auth). Empty = skip remote push.
+	APNsKeyID   string
+	APNsTeamID  string
+	APNsKeyPath string
+	APNsBundle  string
+	APNsProd    bool
 }
 
-// Load reads required env vars. T9_DB_KEY must be at least 16 characters.
+// Load merges environment with t9.setup.json in the data directory.
+// If no DB key is available yet, SetupNeeded is true and the process can still serve the setup UI.
 func Load() (*Config, error) {
-	key := os.Getenv("T9_DB_KEY")
-	if len(key) < 16 {
-		return nil, fmt.Errorf("T9_DB_KEY must be set and at least 16 characters")
-	}
 	listen := envOr("T9_LISTEN", ":8080")
 	data := envOr("T9_DATA", "./data")
-	base := strings.TrimRight(envOr("T9_BASE_URL", "http://127.0.0.1"+listen), "/")
+	_ = os.MkdirAll(data, 0o700)
 
-	return &Config{
-		Listen:     listen,
-		DataDir:    data,
-		BaseURL:    base,
-		DBKey:      []byte(key),
-		PendingTTL: 15 * time.Minute,
-		MessageTTL: 24 * time.Hour,
-		EnrollTTL:  15 * time.Minute,
-		PurgeEvery: time.Minute,
-		TokenBytes: 32,
-	}, nil
+	sf, _ := setup.Load(data)
+	key := os.Getenv("T9_DB_KEY")
+	base := os.Getenv("T9_BASE_URL")
+	if sf != nil {
+		if key == "" && sf.DBKey != "" {
+			key = sf.DBKey
+		}
+		if base == "" && sf.BaseURL != "" {
+			base = sf.BaseURL
+		}
+	}
+	if base == "" {
+		base = "http://127.0.0.1" + listen
+	}
+	base = strings.TrimRight(base, "/")
+
+	cfg := &Config{
+		Listen:      listen,
+		DataDir:     data,
+		BaseURL:     base,
+		PendingTTL:  15 * time.Minute,
+		MessageTTL:  24 * time.Hour,
+		EnrollTTL:   15 * time.Minute,
+		PurgeEvery:  time.Minute,
+		TokenBytes:  32,
+		APNsKeyID:   os.Getenv("T9_APNS_KEY_ID"),
+		APNsTeamID:  os.Getenv("T9_APNS_TEAM_ID"),
+		APNsKeyPath: os.Getenv("T9_APNS_KEY_PATH"),
+		APNsBundle:  envOr("T9_APNS_BUNDLE_ID", "app.t9.messenger"),
+		APNsProd:    os.Getenv("T9_APNS_PRODUCTION") == "1",
+	}
+
+	if len(key) < 16 {
+		cfg.SetupNeeded = true
+		return cfg, nil
+	}
+	cfg.DBKey = []byte(key)
+	return cfg, nil
 }
 
 func envOr(k, def string) string {
@@ -50,4 +86,11 @@ func envOr(k, def string) string {
 		return v
 	}
 	return def
+}
+
+func (c *Config) ValidateMailbox() error {
+	if len(c.DBKey) < 16 {
+		return fmt.Errorf("database key not configured — open /setup.html")
+	}
+	return nil
 }

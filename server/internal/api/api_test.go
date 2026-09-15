@@ -17,6 +17,7 @@ import (
 	"github.com/t9-messenger/t9/server/internal/api"
 	"github.com/t9-messenger/t9/server/internal/config"
 	"github.com/t9-messenger/t9/server/internal/crypto"
+	"github.com/t9-messenger/t9/server/internal/push"
 	"github.com/t9-messenger/t9/server/internal/store"
 	"github.com/t9-messenger/t9/server/internal/webembed"
 )
@@ -41,7 +42,8 @@ func testEnv(t *testing.T) (*api.Server, *store.Store, *config.Config) {
 		PurgeEvery: time.Minute,
 		TokenBytes: 32,
 	}
-	srv := api.New(cfg, st, webembed.Handler())
+	cfg.Fingerprint = st.Fingerprint()
+	srv := api.New(cfg, st, webembed.Handler(), push.NewHub(), nil)
 	return srv, st, cfg
 }
 

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>T-9 — first-run setup</title>
+  <link rel="stylesheet" href="/assets/css/t9.css" />
+</head>
+<body>
+  <div class="wrap">
+    <nav class="nav">
+      <div class="brand">T-9<span class="promise">first-run setup.<em>no host file edits</em></span></div>
+      <div class="nav-links">
+        <a class="chip" href="/setup.html">Setup</a>
+      </div>
+    </nav>
+
+    <h1>Public URL + DB key</h1>
+    <p class="lede">Saved to the Docker volume. After save the container restarts and the mailbox comes online. Optional Cloudflare Tunnel token starts the sidecar without editing compose.</p>
+
+    <div class="bezel">
+      <div class="bezel-inner">
+        <form id="setup-form">
+          <label for="base_url">Public base URL</label>
+          <input id="base_url" name="base_url" type="url" required placeholder="https://t9.example.com" />
+          <p class="hint">Use your DNS / Tunnel hostname. Phone and web both need this URL.</p>
+
+          <label for="db_key">Database seal key (16+)</label>
+          <div class="actions" style="margin-bottom:0.5rem">
+            <button class="btn" type="button" id="gen-key">Generate key</button>
+          </div>
+          <input id="db_key" name="db_key" autocomplete="off" minlength="16" required placeholder="long random secret" />
+          <p class="hint">Stored only on the volume. Losing it means a new empty mailbox.</p>
+
+          <label for="tunnel_token">Cloudflare Tunnel token (optional)</label>
+          <textarea id="tunnel_token" name="tunnel_token" rows="3" placeholder="Paste token from Cloudflare Zero Trust → Tunnels"></textarea>
+          <p class="hint">Written to <code>/data/cloudflare.token</code> for the cloudflared sidecar.</p>
+
+          <div class="actions">
+            <button class="btn accent" type="submit">Save and restart <span class="orb">↗</span></button>
+          </div>
+        </form>
+        <p id="status" class="meter" hidden></p>
+      </div>
+    </div>
+  </div>
+  <script>
+    const status = document.getElementById("status");
+    async function load() {
+      const r = await fetch("/v1/setup");
+      const j = await r.json();
+      if (j.base_url) document.getElementById("base_url").value = j.base_url;
+      if (j.configured) {
+        status.hidden = false;
+        status.textContent = "Already configured. Saving again overwrites volume settings and restarts.";
+      }
+    }
+    document.getElementById("gen-key").addEventListener("click", async () => {
+      const r = await fetch("/v1/setup/generate-key", { method: "POST" });
+      const j = await r.json();
+      if (j.db_key) document.getElementById("db_key").value = j.db_key;
+    });
+    document.getElementById("setup-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      status.hidden = false;
+      status.textContent = "Saving…";
+      const body = {
+        base_url: document.getElementById("base_url").value.trim(),
+        db_key: document.getElementById("db_key").value.trim(),
+        tunnel_token: document.getElementById("tunnel_token").value.trim(),
+      };
+      try {
+        const r = await fetch("/v1/setup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error || "save failed");
+        status.textContent = j.message || "Saved. Waiting for restart…";
+        setTimeout(() => { location.href = "/"; }, 2500);
+      } catch (err) {
+        status.textContent = String(err.message || err);
+      }
+    });
+    load();
+  </script>
+</body>
+</html>

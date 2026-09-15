@@ -91,14 +91,15 @@ Plaintext exists on sending and receiving devices. Between them, the server only
 
 ```bash
 cd deploy
-cp .env.example .env   # set a long T9_DB_KEY and keep it stable
-# optional: T9_BASE_URL=https://your.public.host
+cp .env.example .env   # optional overrides only
 docker compose up --build
 ```
 
-Open [http://127.0.0.1:8080](http://127.0.0.1:8080) → create a handle → scan the TOTP QR → confirm.
+Open [http://127.0.0.1:8080/setup.html](http://127.0.0.1:8080/setup.html) on first boot. Enter the public base URL, generate a DB seal key, and optionally paste a Cloudflare Tunnel token. Settings are written to the Docker volume (`/data/t9.setup.json`, `/data/cloudflare.token`). The container exits and restarts into mailbox mode. No host file edits required.
 
-`T9_DB_KEY` must be at least 16 characters. If you change it and boot fails with a decrypt / authentication error, restore the original key, or wipe mailbox data once with `T9_RESET_DB=1 docker compose up --build` (then unset `T9_RESET_DB`).
+Then open [http://127.0.0.1:8080](http://127.0.0.1:8080) → create a handle → scan the TOTP QR → confirm.
+
+You can still set `T9_DB_KEY` / `T9_BASE_URL` in `.env` to skip the UI. If boot fails with a decrypt / authentication error, restore the original key, or wipe mailbox data once with `T9_RESET_DB=1 docker compose up --build` (then unset `T9_RESET_DB`).
 
 ### Local Go (dev)
 
@@ -242,13 +243,14 @@ Full request shapes: [docs/PROTOCOL.md](docs/PROTOCOL.md) and [docs/knowledge-ba
 
 | Variable | Required | Default | Notes |
 |----------|----------|---------|--------|
-| `T9_DB_KEY` | **yes** | — | ≥16 chars. Derives file-seal and column keys. Keep stable. |
+| `T9_DB_KEY` | via UI or env | — | ≥16 chars. Prefer `/setup.html` (stored in volume). Keep stable. |
 | `T9_LISTEN` | no | `:8080` | Bind address |
-| `T9_DATA` | no | `./data` | Sealed DB + working file (`/data` in Docker) |
-| `T9_BASE_URL` | no | `http://127.0.0.1:8080` | Public origin used in release URLs |
+| `T9_DATA` | no | `./data` | Sealed DB + setup file (`/data` in Docker) |
+| `T9_BASE_URL` | via UI or env | setup / `http://127.0.0.1:8080` | Public origin used in release URLs |
 | `T9_RESET_DB` | no | unset | `1` / `true` / `yes` / `on` deletes sealed DB on boot |
 | `T9_PORT` | Compose | `8080` | Host port mapping |
-| `CLOUDFLARE_TUNNEL_TOKEN` | tunnel profile | — | Sidecar `cloudflared` |
+| `T9_APNS_*` | no | unset | Optional APNs HTTP/2 credentials for background push |
+| Tunnel token | via UI | — | Pasted in setup → `/data/cloudflare.token` for `cloudflared` sidecar |
 
 Hard-coded process timings (not env-tunable in this MVP):
 
@@ -266,15 +268,9 @@ Hard-coded process timings (not env-tunable in this MVP):
 
 ### Cloudflare Tunnel (no public IP)
 
-1. In Zero Trust, create a tunnel: hostname → `http://t9:8080` on the Compose network, or `http://host.docker.internal:8080`.
-2. Put the token in `deploy/.env` as `CLOUDFLARE_TUNNEL_TOKEN=...`
-3. Set `T9_BASE_URL=https://your.hostname`
-4. Start with the profile:
-
-```bash
-cd deploy
-docker compose --profile tunnel up --build
-```
+1. In Zero Trust, create a tunnel: hostname → `http://t9:8080` on the Compose network.
+2. Start Compose (`docker compose up --build`). Open `/setup.html`, set `T9_BASE_URL` to `https://your.hostname`, and paste the tunnel token.
+3. The `cloudflared` sidecar waits for `/data/cloudflare.token` and connects automatically.
 
 ### Data and keys
 

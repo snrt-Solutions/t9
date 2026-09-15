@@ -8,7 +8,7 @@ RUN apk add --no-cache ca-certificates git
 COPY server/go.mod server/go.sum ./
 RUN go mod download
 COPY server/ ./
-COPY web/index.html web/release.html web/status.html ./internal/webembed/static/
+COPY web/index.html web/release.html web/status.html web/setup.html ./internal/webembed/static/
 COPY web/css/ ./internal/webembed/static/css/
 COPY web/js/ ./internal/webembed/static/js/
 COPY web/fonts/ ./internal/webembed/static/fonts/

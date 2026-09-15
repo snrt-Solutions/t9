@@ -21,6 +21,10 @@
 		916841A572D54EA585EED5D3 /* ServerURLView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FD6F3CC6FD44A34AE70A8BF /* ServerURLView.swift */; };
 		CB248684A6AD4D6C873A449E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BCEDBC331754F04AD251A28 /* SettingsView.swift */; };
 		AE2BD91EB5F046EB869A0665 /* WaitingReleaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0A3B096E114456C8DE8C680 /* WaitingReleaseView.swift */; };
+		B1LOCK01A1B2C3D4E5F60708 /* AppLock.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1LOCK01A1B2C3D4E5F60701 /* AppLock.swift */; };
+		B1PUSH01A1B2C3D4E5F60708 /* PushService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1PUSH01A1B2C3D4E5F60701 /* PushService.swift */; };
+		B1EVNT01A1B2C3D4E5F60708 /* EventStream.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1EVNT01A1B2C3D4E5F60701 /* EventStream.swift */; };
+		B1GATE01A1B2C3D4E5F60708 /* LockGateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1GATE01A1B2C3D4E5F60701 /* LockGateView.swift */; };
 		C7F85A6688114F2BB865FBFB /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "T9/App/AppState.swift"; sourceTree = "<group>"; };
 		E0BDE59560F94E23AD77C4C7 /* T9App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "T9/App/T9App.swift"; sourceTree = "<group>"; };
 		0F04163B44134C36ACED9C2A /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "T9/Models/Models.swift"; sourceTree = "<group>"; };
@@ -41,6 +45,10 @@
 		9FD6F3CC6FD44A34AE70A8BF /* ServerURLView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "T9/Views/ServerURLView.swift"; sourceTree = "<group>"; };
 		7BCEDBC331754F04AD251A28 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "T9/Views/SettingsView.swift"; sourceTree = "<group>"; };
 		A0A3B096E114456C8DE8C680 /* WaitingReleaseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "T9/Views/WaitingReleaseView.swift"; sourceTree = "<group>"; };
+		B1LOCK01A1B2C3D4E5F60701 /* AppLock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "T9/Services/AppLock.swift"; sourceTree = "<group>"; };
+		B1PUSH01A1B2C3D4E5F60701 /* PushService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "T9/Services/PushService.swift"; sourceTree = "<group>"; };
+		B1EVNT01A1B2C3D4E5F60701 /* EventStream.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "T9/Services/EventStream.swift"; sourceTree = "<group>"; };
+		B1GATE01A1B2C3D4E5F60701 /* LockGateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "T9/Views/LockGateView.swift"; sourceTree = "<group>"; };
 
 		5122609A2B584CF8BD3DFA0A /* T9.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = T9.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C750D69622D74C8A8F64224C = {
@@ -73,6 +81,10 @@
 				9FD6F3CC6FD44A34AE70A8BF /* ServerURLView.swift */,
 				7BCEDBC331754F04AD251A28 /* SettingsView.swift */,
 				A0A3B096E114456C8DE8C680 /* WaitingReleaseView.swift */,
+				B1LOCK01A1B2C3D4E5F60701 /* AppLock.swift */,
+				B1PUSH01A1B2C3D4E5F60701 /* PushService.swift */,
+				B1EVNT01A1B2C3D4E5F60701 /* EventStream.swift */,
+				B1GATE01A1B2C3D4E5F60701 /* LockGateView.swift */,
 			);
 			name = T9;
 			sourceTree = "<group>";
@@ -106,6 +118,10 @@
 				916841A572D54EA585EED5D3 /* ServerURLView.swift in Sources */,
 				CB248684A6AD4D6C873A449E /* SettingsView.swift in Sources */,
 				AE2BD91EB5F046EB869A0665 /* WaitingReleaseView.swift in Sources */,
+				B1LOCK01A1B2C3D4E5F60708 /* AppLock.swift in Sources */,
+				B1PUSH01A1B2C3D4E5F60708 /* PushService.swift in Sources */,
+				B1EVNT01A1B2C3D4E5F60708 /* EventStream.swift in Sources */,
+				B1GATE01A1B2C3D4E5F60708 /* LockGateView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

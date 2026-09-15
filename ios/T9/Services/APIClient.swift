@@ -54,6 +54,16 @@ actor APIClient {
         }
     }
 
+    func registerPushToken(base: String, token: String, pushToken: String) async throws {
+        struct Ok: Decodable { var ok: Bool? }
+        let _: Ok = try await post(
+            base: base,
+            path: "/v1/device/push-token",
+            body: ["push_token": pushToken],
+            token: token
+        )
+    }
+
     private func url(_ base: String, _ path: String) -> URL {
         let trimmed = base.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         return URL(string: trimmed + path)!

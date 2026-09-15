@@ -8,62 +8,37 @@ struct CredentialsView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                Eyebrow(text: "Device login")
-                Text("Credentials stay pending")
-                    .font(T9Theme.font(32, .bold))
-                    .tracking(-0.6)
-                Text("Password alone cannot bind this device. Approve the pending login on the web with TOTP.")
-                    .foregroundStyle(T9Theme.muted)
+            ScreenChrome(
+                title: "Device login",
+                subtitle: "Password alone cannot bind this device. Approve the pending login on the web with TOTP."
+            ) {
+                VStack(alignment: .leading, spacing: 14) {
+                    FieldLabel(text: "Username")
+                    TextField("Username", text: Binding(
+                        get: { app.username },
+                        set: { app.saveUsername($0) }
+                    ))
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .t9Field()
 
-                T9Theme.bezel {
-                    VStack(alignment: .leading, spacing: 12) {
-                        labeledField("Username", text: Binding(
-                            get: { app.username },
-                            set: { app.saveUsername($0) }
-                        ))
-                        labeledSecure("Password", text: $password)
-                        IslandButton(title: busy ? "Submitting…" : "Request release", tint: T9Theme.teal) {
-                            Task { await login() }
-                        }
-                        .disabled(busy)
-                        Button("Back") { app.phase = .server }
-                            .font(T9Theme.font(14, .medium))
-                            .foregroundStyle(T9Theme.muted)
+                    FieldLabel(text: "Password")
+                    SecureField("Password", text: $password)
+                        .t9Field()
+
+                    PrimaryButton(title: "Request release", tint: T9Theme.teal, busy: busy) {
+                        Task { await login() }
+                    }
+
+                    GhostButton(title: "Back") { app.phase = .server }
+
+                    if !app.statusLine.isEmpty {
                         Text(app.statusLine)
                             .font(T9Theme.font(12))
                             .foregroundStyle(T9Theme.muted)
                     }
                 }
             }
-        }
-    }
-
-    private func labeledField(_ title: String, text: Binding<String>) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title.uppercased())
-                .font(T9Theme.font(11, .semibold))
-                .tracking(1.4)
-                .foregroundStyle(T9Theme.muted)
-            TextField(title, text: text)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .font(T9Theme.font(15, .medium))
-                .padding(14)
-                .background(Color.white.overlay(Rectangle().stroke(Color.black, lineWidth: 2)))
-        }
-    }
-
-    private func labeledSecure(_ title: String, text: Binding<String>) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title.uppercased())
-                .font(T9Theme.font(11, .semibold))
-                .tracking(1.4)
-                .foregroundStyle(T9Theme.muted)
-            SecureField(title, text: text)
-                .font(T9Theme.font(15, .medium))
-                .padding(14)
-                .background(Color.white.overlay(Rectangle().stroke(Color.black, lineWidth: 2)))
         }
     }
 

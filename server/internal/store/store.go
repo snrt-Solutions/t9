@@ -74,6 +74,7 @@ type DeviceSession struct {
 	AccountID string
 	DeviceID  string
 	TokenHash string
+	PushToken string
 	CreatedAt time.Time
 }
 
@@ -191,6 +192,7 @@ CREATE TABLE IF NOT EXISTS device_sessions (
   account_id TEXT NOT NULL UNIQUE REFERENCES accounts(id),
   device_id TEXT NOT NULL,
   token_hash TEXT NOT NULL UNIQUE,
+  push_token TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS messages (
@@ -209,6 +211,7 @@ CREATE INDEX IF NOT EXISTS idx_pending_expires ON pending_device_logins(expires_
 		return err
 	}
 	_, _ = s.db.Exec(`ALTER TABLE accounts ADD COLUMN enroll_expires_at TEXT NOT NULL DEFAULT ''`)
+	_, _ = s.db.Exec(`ALTER TABLE device_sessions ADD COLUMN push_token TEXT NOT NULL DEFAULT ''`)
 	return nil
 }
 
@@ -561,12 +564,12 @@ func (s *Store) ReleasePending(pendingID string, approve bool, mintToken func() 
 func (s *Store) LookupDeviceToken(token string) (*DeviceSession, *Account, error) {
 	hash := crypto.HashToken(token)
 	row := s.db.QueryRow(
-		`SELECT id,account_id,device_id,token_hash,created_at FROM device_sessions WHERE token_hash=?`,
+		`SELECT id,account_id,device_id,token_hash,COALESCE(push_token,''),created_at FROM device_sessions WHERE token_hash=?`,
 		hash,
 	)
 	var d DeviceSession
 	var created string
-	if err := row.Scan(&d.ID, &d.AccountID, &d.DeviceID, &d.TokenHash, &created); err != nil {
+	if err := row.Scan(&d.ID, &d.AccountID, &d.DeviceID, &d.TokenHash, &d.PushToken, &created); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil, ErrNotFound
 		}
@@ -578,6 +581,28 @@ func (s *Store) LookupDeviceToken(token string) (*DeviceSession, *Account, error
 		return nil, nil, err
 	}
 	return &d, acc, nil
+}
+
+func (s *Store) SetPushToken(sessionToken, pushToken string) error {
+	hash := crypto.HashToken(sessionToken)
+	res, err := s.db.Exec(`UPDATE device_sessions SET push_token=? WHERE token_hash=?`, pushToken, hash)
+	if err != nil {
+		return err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return ErrNotFound
+	}
+	return s.SealNow()
+}
+
+func (s *Store) PushTokenForAccount(accountID string) (string, error) {
+	var tok string
+	err := s.db.QueryRow(`SELECT COALESCE(push_token,'') FROM device_sessions WHERE account_id=?`, accountID).Scan(&tok)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	return tok, err
 }
 
 func (s *Store) RevokeByToken(token string) error {

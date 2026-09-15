@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct MailboxTabView: View {
+    @EnvironmentObject var app: AppState
+
     var body: some View {
         TabView {
             InboxView()
@@ -13,5 +15,6 @@ struct MailboxTabView: View {
                 .tabItem { Label("Settings", systemImage: "gearshape") }
         }
         .tint(T9Theme.accent)
+        .onAppear { app.startPushIfNeeded() }
     }
 }

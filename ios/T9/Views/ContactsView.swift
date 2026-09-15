@@ -9,65 +9,59 @@ struct ContactsView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                Eyebrow(text: "Physical proximity")
-                Text("Contacts")
-                    .font(T9Theme.font(30, .bold))
-                Text("No search. No invites. Scan their QR in person.")
-                    .foregroundStyle(T9Theme.muted)
-
-                T9Theme.bezel {
+            ScreenChrome(
+                title: "Contacts",
+                subtitle: "No search. No invites. Scan their QR in person."
+            ) {
+                VStack(alignment: .leading, spacing: 20) {
                     VStack(spacing: 12) {
-                        Text("MY QR")
-                            .font(T9Theme.font(11, .semibold))
-                            .tracking(1.4)
-                            .foregroundStyle(T9Theme.muted)
+                        FieldLabel(text: "My QR")
                         if let img = qrImage(for: myQR()) {
                             Image(uiImage: img)
                                 .interpolation(.none)
                                 .resizable()
                                 .scaledToFit()
                                 .frame(width: 200, height: 200)
+                                .padding(12)
+                                .background(T9Theme.surface)
+                                .overlay(Rectangle().stroke(T9Theme.hair, lineWidth: T9Theme.stroke))
                         }
                         Text(myQR())
                             .font(T9Theme.font(10))
                             .foregroundStyle(T9Theme.muted)
                             .textSelection(.enabled)
                     }
-                }
+                    .frame(maxWidth: .infinity)
 
-                T9Theme.bezel {
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("PASTE / SCAN PAYLOAD")
-                            .font(T9Theme.font(11, .semibold))
-                            .tracking(1.4)
-                            .foregroundStyle(T9Theme.muted)
+                        FieldLabel(text: "Paste payload")
                         TextField("t9://contact?u=…", text: $scanPayload)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
-                            .font(T9Theme.font(13))
-                            .padding(12)
-                            .background(Color.white.overlay(Rectangle().stroke(Color.black, lineWidth: 2)))
-                        IslandButton(title: "Add contact", tint: T9Theme.teal) {
+                            .t9Field()
+                        PrimaryButton(title: "Add contact", tint: T9Theme.teal) {
                             addFromPayload()
                         }
-                        Text(status)
-                            .font(T9Theme.font(12))
-                            .foregroundStyle(T9Theme.muted)
-                        Text("Camera QR scanning: wire AVFoundation / CodeScanner in a signed build; MVP accepts pasted t9:// payloads.")
-                            .font(T9Theme.font(12))
-                            .foregroundStyle(T9Theme.muted)
+                        if !status.isEmpty {
+                            Text(status)
+                                .font(T9Theme.font(12))
+                                .foregroundStyle(T9Theme.muted)
+                        }
                     }
-                }
 
-                ForEach(app.contacts) { c in
-                    T9Theme.bezel {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(c.username)
-                                .font(T9Theme.font(16, .semibold))
-                            Text("srv \(c.serverFingerprint)")
-                                .font(T9Theme.font(11))
-                                .foregroundStyle(c.serverFingerprint == app.fingerprint ? T9Theme.teal : T9Theme.warn)
+                    if !app.contacts.isEmpty {
+                        LazyVStack(alignment: .leading, spacing: 0) {
+                            ForEach(Array(app.contacts.enumerated()), id: \.element.id) { idx, c in
+                                if idx > 0 { RowDivider() }
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(c.username)
+                                        .font(T9Theme.font(16, .semibold))
+                                    Text("srv \(c.serverFingerprint)")
+                                        .font(T9Theme.font(11))
+                                        .foregroundStyle(c.serverFingerprint == app.fingerprint ? T9Theme.teal : T9Theme.warn)
+                                }
+                                .padding(.vertical, 12)
+                            }
                         }
                     }
                 }
@@ -96,7 +90,7 @@ struct ContactsView: View {
             return
         }
         if srv != app.fingerprint && !app.fingerprint.isEmpty {
-            status = "warning: server fingerprint mismatch — contact saved with flag"
+            status = "warning: server fingerprint mismatch - contact saved with flag"
         } else {
             status = "contact saved"
         }

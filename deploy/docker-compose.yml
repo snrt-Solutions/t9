@@ -8,26 +8,31 @@ services:
     environment:
       T9_LISTEN: ":8080"
       T9_DATA: /data
-      T9_BASE_URL: ${T9_BASE_URL:-http://127.0.0.1:8080}
-      T9_DB_KEY: ${T9_DB_KEY:?set T9_DB_KEY to a long random secret}
+      # Optional overrides — prefer first-run UI at /setup.html (writes /data/t9.setup.json)
+      T9_BASE_URL: ${T9_BASE_URL:-}
+      T9_DB_KEY: ${T9_DB_KEY:-}
       T9_RESET_DB: ${T9_RESET_DB:-}
+      T9_APNS_KEY_ID: ${T9_APNS_KEY_ID:-}
+      T9_APNS_TEAM_ID: ${T9_APNS_TEAM_ID:-}
+      T9_APNS_KEY_PATH: ${T9_APNS_KEY_PATH:-}
+      T9_APNS_BUNDLE_ID: ${T9_APNS_BUNDLE_ID:-app.t9.messenger}
+      T9_APNS_PRODUCTION: ${T9_APNS_PRODUCTION:-}
     volumes:
       - t9-data:/data
     ports:
       - "${T9_PORT:-8080}:8080"
 
-  # Optional: Cloudflare Tunnel sidecar (set CLOUDFLARE_TUNNEL_TOKEN)
+  # Waits for token written by setup UI to /data/cloudflare.token
   cloudflared:
-    image: cloudflare/cloudflared:latest
+    build:
+      context: ..
+      dockerfile: deploy/cloudflared.Dockerfile
     container_name: t9-cloudflared
     restart: unless-stopped
-    command: tunnel --no-autoupdate run
-    environment:
-      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    volumes:
+      - t9-data:/data:ro
     depends_on:
       - t9
-    profiles:
-      - tunnel
 
 volumes:
   t9-data:

@@ -13,3 +13,4 @@ DerivedData/
 .env.bak
 deploy/.env.bak
 .cursor/
+/t9dev
