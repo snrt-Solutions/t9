@@ -9,12 +9,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/t9-messenger/t9/server/internal/api"
-	"github.com/t9-messenger/t9/server/internal/config"
-	"github.com/t9-messenger/t9/server/internal/purge"
-	"github.com/t9-messenger/t9/server/internal/push"
-	"github.com/t9-messenger/t9/server/internal/store"
-	"github.com/t9-messenger/t9/server/internal/webembed"
+	"github.com/aesms-io/aesms/server/internal/api"
+	"github.com/aesms-io/aesms/server/internal/config"
+	"github.com/aesms-io/aesms/server/internal/purge"
+	"github.com/aesms-io/aesms/server/internal/push"
+	"github.com/aesms-io/aesms/server/internal/store"
+	"github.com/aesms-io/aesms/server/internal/webembed"
 )
 
 func main() {
@@ -56,7 +56,7 @@ func main() {
 		os.Exit(0)
 	}
 	if cfg.TurnstileSecret == "" {
-		log.Printf("turnstile: disabled (set T9_TURNSTILE_SECRET for internet-facing create)")
+		log.Printf("turnstile: disabled (set AESMS_TURNSTILE_SECRET for internet-facing create)")
 	} else {
 		log.Printf("turnstile: enabled on account create")
 	}
@@ -72,9 +72,9 @@ func main() {
 
 	go func() {
 		if cfg.SetupNeeded {
-			log.Printf("t9d SETUP MODE on %s — open http://127.0.0.1%s/setup.html", cfg.Listen, cfg.Listen)
+			log.Printf("aesmsd SETUP MODE on %s — open http://127.0.0.1%s/setup.html", cfg.Listen, cfg.Listen)
 		} else {
-			log.Printf("t9d listening on %s base=%s fp=%s", cfg.Listen, cfg.BaseURL, cfg.Fingerprint)
+			log.Printf("aesmsd listening on %s base=%s fp=%s", cfg.Listen, cfg.BaseURL, cfg.Fingerprint)
 		}
 		if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatal(err)

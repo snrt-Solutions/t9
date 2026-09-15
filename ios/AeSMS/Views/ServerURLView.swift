@@ -14,7 +14,7 @@ struct ServerURLView: View {
                 ) {
                     VStack(alignment: .leading, spacing: 14) {
                         FieldLabel(text: "Server URL")
-                        TextField("https://t9.example.com", text: $app.serverURL)
+                        TextField("https://app.aesms.io", text: $app.serverURL)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
                             .keyboardType(.URL)
@@ -37,7 +37,7 @@ struct ServerURLView: View {
 
     private var brand: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("T-9")
+            Text("AeSMS")
                 .font(T9Theme.font(28, .bold))
             Text("fetch-once messaging")
                 .font(T9Theme.font(13, .medium))

@@ -9,7 +9,7 @@ struct LockGateView: View {
         ZStack {
             T9Theme.bg.ignoresSafeArea()
             VStack(alignment: .leading, spacing: 24) {
-                Text("T-9")
+                Text("AeSMS")
                     .font(T9Theme.font(36, .bold))
                 Text("Locked")
                     .font(T9Theme.font(22, .semibold))

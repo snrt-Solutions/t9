@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Define what an “account” is in T-9, and what it is not.
+Define what an “account” is in AeSMS.io, and what it is not.
 
 ## Handles, not people
 

@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>T-9</string>
+	<string>AeSMS</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -30,7 +30,7 @@
 	<key>NSCameraUsageDescription</key>
 	<string>Scan contact QR codes in person.</string>
 	<key>NSFaceIDUsageDescription</key>
-	<string>Unlock the T-9 mailbox with Face ID or your device passcode.</string>
+	<string>Unlock the AeSMS mailbox with Face ID or your device passcode.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>

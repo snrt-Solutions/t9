@@ -51,7 +51,7 @@ Deletes from `device_sessions` by `token_hash` or `account_id`.
 
 - `server/internal/api/api.go` — `handleDeviceRevoke`
 - `server/internal/store/store.go` — `RevokeByToken`, `RevokeByAccount`
-- `ios/T9/Views/SettingsView.swift`, `ios/T9/Services/APIClient.swift`
+- `ios/AeSMS/Views/SettingsView.swift`, `ios/AeSMS/Services/APIClient.swift`
 
 ## Related Documentation
 

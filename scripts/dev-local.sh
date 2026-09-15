@@ -20,26 +20,26 @@ echo
 echo "==> open create-account page"
 open "http://127.0.0.1:8080/" || true
 
-echo "==> build t9dev (device stand-in — no iPhone required)"
+echo "==> build aesmsdev (device stand-in — no iPhone required)"
 cd "$ROOT/server"
-go build -o "$ROOT/t9dev" ./cmd/t9dev
-echo "binary: $ROOT/t9dev"
+go build -o "$ROOT/aesmsdev" ./cmd/aesmsdev
+echo "binary: $ROOT/aesmsdev"
 
 cat <<'TXT'
 
 Next (local loop, no phone):
   1. In the browser: create username + password, scan TOTP QR, confirm.
   2. Bind a fake device:
-       export T9_URL=http://127.0.0.1:8080 T9_USER=yourhandle
-       ./t9dev login
+       export AESMS_URL=http://127.0.0.1:8080 AESMS_USER=yourhandle
+       ./aesmsdev login
   3. Browser: Release page → Approve with TOTP.
   4. Then:
-       ./t9dev send -to yourhandle -text "hello from t9dev"
-       ./t9dev fetch
+       ./aesmsdev send -to yourhandle -text "hello from aesmsdev"
+       ./aesmsdev fetch
 
 To run the real iOS app you still need full Xcode from the App Store
 (this Mac only has Command Line Tools). After it installs:
-  open ios/T9.xcodeproj
+  open ios/AeSMS.xcodeproj
   pick a Simulator, set Signing Team, Run.
   Server URL in the app: http://127.0.0.1:8080
 

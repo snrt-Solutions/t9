@@ -3,20 +3,20 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>T-9 — first-run setup</title>
+  <title>AeSMS.io — first-run setup</title>
   <link rel="icon" href="/assets/img/favicon-32.png" type="image/png" sizes="32x32" />
   <link rel="icon" href="/assets/img/favicon-16.png" type="image/png" sizes="16x16" />
   <link rel="apple-touch-icon" href="/assets/img/apple-touch-icon.png" />
   <meta name="theme-color" content="#ececec" />
-  <link rel="stylesheet" href="/assets/css/t9.css" />
+  <link rel="stylesheet" href="/assets/css/aesms.css" />
 </head>
 <body>
   <div class="wrap">
     <nav class="nav">
       <a class="brand" href="/setup.html">
-        <img class="brand-mark" src="/assets/img/t9-mark.png" width="48" height="48" alt="" />
+        <img class="brand-mark" src="/assets/img/aesms-mark.png" width="48" height="48" alt="" />
         <span class="brand-copy">
-          <span class="brand-name">T-9</span>
+          <span class="brand-name">AeSMS</span>
           <span class="promise">first-run setup.<em>no host file edits</em></span>
         </span>
       </a>
@@ -26,21 +26,21 @@
     </nav>
 
     <h1>Public URL + DB key</h1>
-    <p class="lede">Saved to the Docker volume. After save the container restarts and the mailbox comes online. For HTTPS at <code>t9.snrt.tech</code>, set <code>CLOUDFLARE_TUNNEL_TOKEN</code> in <code>deploy/.env</code> (not here) — see the Cloudflare Tunnel docs.</p>
+    <p class="lede">Saved to the Docker volume. After save the container restarts and the mailbox comes online. For HTTPS at <code>app.aesms.io</code>, set <code>CLOUDFLARE_TUNNEL_TOKEN</code> in <code>deploy/.env</code> (not here) — see the Cloudflare Tunnel docs.</p>
 
     <div class="bezel">
       <div class="bezel-inner">
         <form id="setup-form">
           <label for="base_url">Public base URL</label>
-          <input id="base_url" name="base_url" type="url" required placeholder="https://t9.snrt.tech" />
-          <p class="hint">Must match the Cloudflare hostname (e.g. <code>https://t9.snrt.tech</code>).</p>
+          <input id="base_url" name="base_url" type="url" required placeholder="https://app.aesms.io" />
+          <p class="hint">Must match the Cloudflare hostname (e.g. <code>https://app.aesms.io</code>).</p>
 
           <label for="db_key">Database seal key (16+)</label>
           <div class="actions" style="margin-bottom:0.5rem">
             <button class="btn" type="button" id="gen-key">Generate key</button>
           </div>
           <input id="db_key" name="db_key" autocomplete="off" minlength="16" required placeholder="long random secret" />
-          <p class="hint">Stored only on the volume. Losing it means a new empty mailbox. Prefer setting <code>T9_DB_KEY</code> in <code>deploy/.env</code> for tunnel-first boot.</p>
+          <p class="hint">Stored only on the volume. Losing it means a new empty mailbox. Prefer setting <code>AESMS_DB_KEY</code> in <code>deploy/.env</code> for tunnel-first boot.</p>
 
           <div class="actions">
             <button class="btn accent" type="submit">Save and restart <span class="orb">↗</span></button>

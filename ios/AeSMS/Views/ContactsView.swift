@@ -35,7 +35,7 @@ struct ContactsView: View {
 
                     VStack(alignment: .leading, spacing: 10) {
                         FieldLabel(text: "Paste payload")
-                        TextField("t9://contact?u=…", text: $scanPayload)
+                        TextField("aesms://contact?u=…", text: $scanPayload)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
                             .t9Field()
@@ -73,11 +73,11 @@ struct ContactsView: View {
         let u = app.username.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? app.username
         let pk = app.keys.publicKeyB64().addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         let srv = app.fingerprint.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        return "t9://contact?u=\(u)&pk=\(pk)&srv=\(srv)"
+        return "aesms://contact?u=\(u)&pk=\(pk)&srv=\(srv)"
     }
 
     private func addFromPayload() {
-        guard let url = URL(string: scanPayload), url.scheme == "t9", url.host == "contact",
+        guard let url = URL(string: scanPayload), url.scheme == "aesms", url.host == "contact",
               let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems else {
             status = "bad payload"
             return

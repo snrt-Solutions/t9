@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/t9-messenger/t9/server/internal/store"
+	"github.com/aesms-io/aesms/server/internal/store"
 )
 
 // Runner periodically deletes expired messages and pending logins.

@@ -11,14 +11,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/t9-messenger/t9/server/internal/auth"
-	"github.com/t9-messenger/t9/server/internal/captcha"
-	"github.com/t9-messenger/t9/server/internal/config"
-	"github.com/t9-messenger/t9/server/internal/crypto"
-	"github.com/t9-messenger/t9/server/internal/push"
-	"github.com/t9-messenger/t9/server/internal/ratelimit"
-	"github.com/t9-messenger/t9/server/internal/setup"
-	"github.com/t9-messenger/t9/server/internal/store"
+	"github.com/aesms-io/aesms/server/internal/auth"
+	"github.com/aesms-io/aesms/server/internal/captcha"
+	"github.com/aesms-io/aesms/server/internal/config"
+	"github.com/aesms-io/aesms/server/internal/crypto"
+	"github.com/aesms-io/aesms/server/internal/push"
+	"github.com/aesms-io/aesms/server/internal/ratelimit"
+	"github.com/aesms-io/aesms/server/internal/setup"
+	"github.com/aesms-io/aesms/server/internal/store"
 )
 
 type Server struct {
@@ -209,7 +209,7 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleInfo(w http.ResponseWriter, r *http.Request) {
 	captchaRequired := s.Captcha != nil && s.Captcha.Enabled()
 	writeJSON(w, http.StatusOK, map[string]any{
-		"name":               "t9",
+		"name":               "aesms",
 		"base_url":           s.Cfg.BaseURL,
 		"fingerprint":        s.Cfg.Fingerprint,
 		"message_ttl_h":      24,
@@ -264,8 +264,8 @@ func (s *Server) handleSetupPost(w http.ResponseWriter, r *http.Request) {
 			key = sf.DBKey
 		}
 	}
-	if len(os.Getenv("T9_DB_KEY")) >= 16 && key == "" {
-		key = os.Getenv("T9_DB_KEY")
+	if len(os.Getenv("AESMS_DB_KEY")) >= 16 && key == "" {
+		key = os.Getenv("AESMS_DB_KEY")
 	}
 	if len(key) < 16 {
 		writeErr(w, http.StatusBadRequest, "db_key must be at least 16 characters")
@@ -370,7 +370,7 @@ func (s *Server) handleCreateAccount(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, "hash failed")
 		return
 	}
-	key, err := auth.GenerateTOTP("T9", req.Username)
+	key, err := auth.GenerateTOTP("AeSMS", req.Username)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, "totp failed")
 		return

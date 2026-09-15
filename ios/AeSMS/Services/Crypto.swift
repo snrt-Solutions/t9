@@ -38,7 +38,7 @@ final class KeyStore {
         let shared = try ephemeral.sharedSecretFromKeyAgreement(with: theirPub)
         let sym = shared.hkdfDerivedSymmetricKey(
             using: SHA256.self,
-            salt: Data("t9-msg-v1".utf8),
+            salt: Data("aesms-msg-v1".utf8),
             sharedInfo: Data(),
             outputByteCount: 32
         )
@@ -64,7 +64,7 @@ final class KeyStore {
         let shared = try id.privateKey.sharedSecretFromKeyAgreement(with: ephPub)
         let sym = shared.hkdfDerivedSymmetricKey(
             using: SHA256.self,
-            salt: Data("t9-msg-v1".utf8),
+            salt: Data("aesms-msg-v1".utf8),
             sharedInfo: Data(),
             outputByteCount: 32
         )

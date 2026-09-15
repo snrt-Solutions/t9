@@ -4,7 +4,7 @@ Short glossary for the mailbox. Prefer these words in docs and UI copy.
 
 | Term | Meaning |
 |------|---------|
-| **t9d** | The Go daemon (`server/cmd/t9d`) |
+| **aesmsd** | The Go daemon (`server/cmd/aesmsd`) |
 | **Mailbox** | Server-side ciphertext store with fetch-once + TTL |
 | **Blind mailbox** | Operator sees metadata, not plaintext |
 | **Handle / username** | Opaque `[A-Za-z0-9_]{3,32}` account name |
@@ -15,11 +15,11 @@ Short glossary for the mailbox. Prefer these words in docs and UI copy.
 | **Assertion** | App-integrity placeholder (non-empty string in MVP) |
 | **Fetch-once** | GET messages returns then deletes |
 | **Grapheme** | Extended grapheme cluster; max 160 per message |
-| **Contact QR** | `t9://contact?u&pk&srv` local-only address book entry |
+| **Contact QR** | `aesms://contact?u&pk&srv` local-only address book entry |
 | **Fingerprint** | Public hex id of this server database |
-| **Sealed DB** | `t9.db.sealed` AES-GCM wrap of SQLite bytes |
-| **Working DB** | `.t9.work.db` plaintext SQLite while `t9d` runs |
-| **T9_DB_KEY** | Master secret (≥16 chars) for file seal + TOTP column crypto |
+| **Sealed DB** | `aesms.db.sealed` AES-GCM wrap of SQLite bytes |
+| **Working DB** | `.aesms.work.db` plaintext SQLite while `aesmsd` runs |
+| **AESMS_DB_KEY** | Master secret (≥16 chars) for file seal + TOTP column crypto |
 | **Keep locally** | Decrypted inbox copies on device after fetch |
 
 ## Related Documentation

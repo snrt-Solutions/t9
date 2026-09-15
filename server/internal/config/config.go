@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/t9-messenger/t9/server/internal/setup"
+	"github.com/aesms-io/aesms/server/internal/setup"
 )
 
 // Config holds process configuration from env + optional /data setup file.
@@ -41,16 +41,16 @@ type Config struct {
 	RateLimitDisabled bool
 }
 
-// Load merges environment with t9.setup.json in the data directory.
+// Load merges environment with aesms.setup.json in the data directory.
 // If no DB key is available yet, SetupNeeded is true and the process can still serve the setup UI.
 func Load() (*Config, error) {
-	listen := envOr("T9_LISTEN", ":8080")
-	data := envOr("T9_DATA", "./data")
+	listen := envOr("AESMS_LISTEN", ":8080")
+	data := envOr("AESMS_DATA", "./data")
 	_ = os.MkdirAll(data, 0o700)
 
 	sf, _ := setup.Load(data)
-	key := os.Getenv("T9_DB_KEY")
-	base := os.Getenv("T9_BASE_URL")
+	key := os.Getenv("AESMS_DB_KEY")
+	base := os.Getenv("AESMS_BASE_URL")
 	if sf != nil {
 		if key == "" && sf.DBKey != "" {
 			key = sf.DBKey
@@ -73,15 +73,15 @@ func Load() (*Config, error) {
 		EnrollTTL:   15 * time.Minute,
 		PurgeEvery:  time.Minute,
 		TokenBytes:  32,
-		APNsKeyID:   os.Getenv("T9_APNS_KEY_ID"),
-		APNsTeamID:  os.Getenv("T9_APNS_TEAM_ID"),
-		APNsKeyPath: os.Getenv("T9_APNS_KEY_PATH"),
-		APNsBundle:  envOr("T9_APNS_BUNDLE_ID", "app.t9.messenger"),
-		APNsProd:    os.Getenv("T9_APNS_PRODUCTION") == "1",
+		APNsKeyID:   os.Getenv("AESMS_APNS_KEY_ID"),
+		APNsTeamID:  os.Getenv("AESMS_APNS_TEAM_ID"),
+		APNsKeyPath: os.Getenv("AESMS_APNS_KEY_PATH"),
+		APNsBundle:  envOr("AESMS_APNS_BUNDLE_ID", "io.aesms.app"),
+		APNsProd:    os.Getenv("AESMS_APNS_PRODUCTION") == "1",
 
-		TurnstileSiteKey:  strings.TrimSpace(os.Getenv("T9_TURNSTILE_SITE_KEY")),
-		TurnstileSecret:   strings.TrimSpace(os.Getenv("T9_TURNSTILE_SECRET")),
-		RateLimitDisabled: os.Getenv("T9_RATE_LIMIT_DISABLED") == "1",
+		TurnstileSiteKey:  strings.TrimSpace(os.Getenv("AESMS_TURNSTILE_SITE_KEY")),
+		TurnstileSecret:   strings.TrimSpace(os.Getenv("AESMS_TURNSTILE_SECRET")),
+		RateLimitDisabled: os.Getenv("AESMS_RATE_LIMIT_DISABLED") == "1",
 	}
 
 	if len(key) < 16 {

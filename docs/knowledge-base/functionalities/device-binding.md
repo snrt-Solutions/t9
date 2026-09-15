@@ -31,7 +31,7 @@ On **deny**, pollers see `denied` and never receive a token.
 ## Rules
 
 - `device_id` required, length 1–128.
-- Empty `assertion` → `400 assertion required`. MVP accepts any non-empty string (iOS sends `t9-ios-mvp-signed-placeholder`). App Attest is not verified.
+- Empty `assertion` → `400 assertion required`. MVP accepts any non-empty string (iOS sends `aesms-ios-mvp-signed-placeholder`). App Attest is not verified.
 - Inactive account → `403 account not active`.
 - Bad username/password → `401 invalid credentials` (no user enumeration distinction beyond that).
 - Release TOTP must match the account that owns the pending row; mismatch of pending vs username → `403 pending mismatch`.
@@ -71,7 +71,7 @@ Poll response: `pending_id`, `status`, optional `device_token` + `token_type: "d
 
 - `server/internal/api/api.go` — login, poll, release, `requireDevice`
 - `server/internal/store/store.go` — pending and session tables
-- `ios/T9/Services/APIClient.swift`, `ios/T9/Views/WaitingReleaseView.swift`, `ios/T9/App/AppState.swift`
+- `ios/AeSMS/Services/APIClient.swift`, `ios/AeSMS/Views/WaitingReleaseView.swift`, `ios/AeSMS/App/AppState.swift`
 - `web/release.html`
 - Tests: `TestPendingCannotFetchUntilReleased`, `TestNoAccountSessionCookiesOnWebFlows`
 

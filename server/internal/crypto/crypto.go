@@ -15,7 +15,14 @@ import (
 	"golang.org/x/crypto/hkdf"
 )
 
-const fileMagic = "T9DB1\n"
+const (
+	fileMagic       = "AESMS1\n"
+	fileMagicLegacy = "T9DB1\n"
+	fileHKDF        = "aesms-db-file-v1"
+	fileHKDFLegacy  = "t9-db-file-v1"
+	ColumnHKDF      = "aesms-column-v1"
+	ColumnHKDFLegacy = "t9-column-v1"
+)
 
 // DeriveAESKey expands master into a 32-byte AES key using HKDF-SHA256.
 func DeriveAESKey(master []byte, info string) []byte {
@@ -61,9 +68,9 @@ func Open(key, sealed, aad []byte) ([]byte, error) {
 	return gcm.Open(nil, nonce, ct, aad)
 }
 
-// SealFile wraps a whole SQLite file for at-rest storage.
+// SealFile wraps a whole SQLite file for at-rest storage (current format only).
 func SealFile(master, plaintext []byte) ([]byte, error) {
-	key := DeriveAESKey(master, "t9-db-file-v1")
+	key := DeriveAESKey(master, fileHKDF)
 	sealed, err := Seal(key, plaintext, []byte(fileMagic))
 	if err != nil {
 		return nil, err
@@ -74,13 +81,26 @@ func SealFile(master, plaintext []byte) ([]byte, error) {
 	return out, nil
 }
 
-// OpenFile unwraps SealFile output.
+// OpenFile unwraps SealFile output. Also accepts legacy pre-rename seals.
 func OpenFile(master, sealedFile []byte) ([]byte, error) {
-	if len(sealedFile) < len(fileMagic) || string(sealedFile[:len(fileMagic)]) != fileMagic {
-		return nil, errors.New("invalid sealed database magic")
+	type attempt struct {
+		magic string
+		info  string
 	}
-	key := DeriveAESKey(master, "t9-db-file-v1")
-	return Open(key, sealedFile[len(fileMagic):], []byte(fileMagic))
+	for _, a := range []attempt{
+		{fileMagic, fileHKDF},
+		{fileMagicLegacy, fileHKDFLegacy},
+	} {
+		if len(sealedFile) < len(a.magic) || string(sealedFile[:len(a.magic)]) != a.magic {
+			continue
+		}
+		key := DeriveAESKey(master, a.info)
+		plain, err := Open(key, sealedFile[len(a.magic):], []byte(a.magic))
+		if err == nil {
+			return plain, nil
+		}
+	}
+	return nil, errors.New("invalid sealed database magic")
 }
 
 // HashPassword returns argon2id encoded hash.

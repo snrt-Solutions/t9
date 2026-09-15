@@ -25,7 +25,7 @@ func TestGraphemeCount(t *testing.T) {
 }
 
 func TestTOTPQRDataURL(t *testing.T) {
-	key, err := GenerateTOTP("T9", "alice_user")
+	key, err := GenerateTOTP("AeSMS", "alice_user")
 	if err != nil {
 		t.Fatal(err)
 	}

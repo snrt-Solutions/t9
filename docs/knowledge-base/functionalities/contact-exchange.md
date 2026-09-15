@@ -6,7 +6,7 @@ Build a local address book by exchanging a QR payload in person. The mailbox nev
 
 ## User or Business Value
 
-No directory, no invites, no “add by email.” Sealed mail is only practical after you have the other party’s public key. Fingerprints make it obvious when a QR came from a different `t9d` instance.
+No directory, no invites, no “add by email.” Sealed mail is only practical after you have the other party’s public key. Fingerprints make it obvious when a QR came from a different `aesmsd` instance.
 
 ## Main Flow
 
@@ -14,11 +14,11 @@ No directory, no invites, no “add by email.” Sealed mail is only practical a
 2. Contacts screen renders a QR for:
 
    ```
-   t9://contact?u=<username>&pk=<base64-x25519-pubkey>&srv=<server-fingerprint>
+   aesms://contact?u=<username>&pk=<base64-x25519-pubkey>&srv=<server-fingerprint>
    ```
 
 3. The other person pastes that URI into “paste / scan payload” (camera scan is stubbed in this MVP).
-4. App parses `scheme=t9`, `host=contact`, query `u`, `pk`, `srv`.
+4. App parses `scheme=aesms`, `host=contact`, query `u`, `pk`, `srv`.
 5. Contact is appended to `contacts.json` unless that username already exists.
 6. If `srv` ≠ the configured server’s `GET /v1/info` fingerprint, UI shows a warning but still saves the contact (flagged by color).
 
@@ -45,7 +45,7 @@ There is **no** HTTP contact API.
 
 - Live camera / AVFoundation is not wired; Info.plist already has a camera usage string for a future signed build.
 - PROTOCOL.md describes `pk` as base64url; the iOS client uses **standard base64** for CryptoKit raw keys and percent-encodes them in the URI. Interop clients should accept what this app emits.
-- Contacts survive app relaunch via Application Support `T9/contacts.json`. They are not on the server, so a new phone needs QR exchange again or a [local backup](encrypted-backup.md).
+- Contacts survive app relaunch via Application Support `AeSMS/contacts.json`. They are not on the server, so a new phone needs QR exchange again or a [local backup](encrypted-backup.md).
 
 ## Data Involved
 
@@ -61,10 +61,10 @@ Server identity: `meta.server_id` random token, published as first 16 hex chars 
 
 ## Code Locations
 
-- `ios/T9/Views/ContactsView.swift`
-- `ios/T9/Models/Models.swift`
-- `ios/T9/Services/LocalStore.swift`
-- `ios/T9/Views/ComposerView.swift`
+- `ios/AeSMS/Views/ContactsView.swift`
+- `ios/AeSMS/Models/Models.swift`
+- `ios/AeSMS/Services/LocalStore.swift`
+- `ios/AeSMS/Views/ComposerView.swift`
 - `server/internal/store/store.go` (`ensureServerIdentity`)
 - `server/internal/api/api.go` (`handleInfo`)
 

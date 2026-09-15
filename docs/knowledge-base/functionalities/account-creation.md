@@ -11,7 +11,7 @@ Operators get accounts without collecting email or phone. Users get a second fac
 ## Main Flow
 
 1. Browser `POST /v1/accounts` with `username`, `password`, and (when configured) `cf-turnstile-response`.
-2. Server validates the handle and password, rejects unknown JSON keys and PII-shaped fields, verifies Turnstile when `T9_TURNSTILE_SECRET` is set, hashes the password (Argon2id), generates a TOTP key (issuer `T9`, 6 digits, 30s, SHA1), and stores an **inactive** row with the TOTP secret column-encrypted.
+2. Server validates the handle and password, rejects unknown JSON keys and PII-shaped fields, verifies Turnstile when `AESMS_TURNSTILE_SECRET` is set, hashes the password (Argon2id), generates a TOTP key (issuer `AeSMS`, 6 digits, 30s, SHA1), and stores an **inactive** row with the TOTP secret column-encrypted.
 3. Response includes `totp_secret`, `totp_uri`, a PNG QR as `totp_qr_png` (data URL), `enroll_expires_at`, `active: false`, and `"session": null`.
 4. User scans the QR or types the secret into an authenticator.
 5. Browser `POST /v1/accounts/totp/confirm` with `username` and `code`.
@@ -50,7 +50,7 @@ The create page (`web/index.html`) loads Turnstile when `/v1/info` reports `capt
 - Confirm after the 15-minute window looks like “account not found” because the row is deleted.
 - Purge can free usernames even if the browser never comes back.
 - Active accounts are never deleted by enroll timeout, abandon, or recreate.
-- Local/dev without `T9_TURNSTILE_SECRET` skips captcha; internet-facing operators should set both Turnstile env vars.
+- Local/dev without `AESMS_TURNSTILE_SECRET` skips captcha; internet-facing operators should set both Turnstile env vars.
 
 ## Data Involved
 
@@ -73,7 +73,7 @@ Create response fields: `account_id`, `username`, `totp_secret`, `totp_uri`, `to
 - `server/internal/store/store.go` — inactive create, confirm, abandon, purge of expired enrollments
 - `server/internal/auth/auth.go`, `server/internal/auth/qr.go`
 - `server/internal/captcha/turnstile.go`
-- `web/index.html`, `web/js/t9.js`
+- `web/index.html`, `web/js/aesms.js`
 - Tests: `TestUnfinishedEnrollmentReleasesUsername`, `TestPIIRejected`, `TestUnknownJSONFieldRejected`, `TestCaptchaRequiredWhenConfigured`, `TestRateLimitOnAccountCreate` in `server/internal/api/api_test.go`
 
 ## Related Documentation

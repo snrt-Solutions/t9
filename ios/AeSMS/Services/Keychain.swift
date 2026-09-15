@@ -2,7 +2,7 @@ import Foundation
 import Security
 
 enum Keychain {
-    private static let service = "app.t9.messenger"
+    private static let service = "io.aesms.app"
 
     static func set(_ key: String, value: String) {
         let data = Data(value.utf8)

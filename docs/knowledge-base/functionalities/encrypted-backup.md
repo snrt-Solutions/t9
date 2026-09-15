@@ -56,9 +56,9 @@ Magic `T9BK1`. Payload version `v: 1`. Fields `priv`, `pub` (base64 raw X25519),
 
 ## Code Locations
 
-- `ios/T9/Services/LocalStore.swift`
-- `ios/T9/Views/SettingsView.swift`
-- `ios/T9/Services/Keychain.swift`, `ios/T9/Services/Crypto.swift`
+- `ios/AeSMS/Services/LocalStore.swift`
+- `ios/AeSMS/Views/SettingsView.swift`
+- `ios/AeSMS/Services/Keychain.swift`, `ios/AeSMS/Services/Crypto.swift`
 
 ## Related Documentation
 

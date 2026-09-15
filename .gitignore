@@ -1,7 +1,7 @@
 .tools/
 server/data/
 **/data/
-**/.t9.work.db*
+**/.aesms.work.db*
 *.sealed
 .env
 deploy/.env
@@ -13,4 +13,4 @@ DerivedData/
 .env.bak
 deploy/.env.bak
 .cursor/
-/t9dev
+/aesmsdev

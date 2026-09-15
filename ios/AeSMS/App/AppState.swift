@@ -5,7 +5,7 @@ import Combine
 @MainActor
 final class AppState: ObservableObject {
     @Published var serverURL: String {
-        didSet { UserDefaults.standard.set(serverURL, forKey: "t9.serverURL") }
+        didSet { UserDefaults.standard.set(serverURL, forKey: "aesms.serverURL") }
     }
     @Published var phase: Phase = .server
     @Published var username: String = ""
@@ -31,12 +31,12 @@ final class AppState: ObservableObject {
     }
 
     init() {
-        serverURL = UserDefaults.standard.string(forKey: "t9.serverURL") ?? "http://127.0.0.1:8080"
+        serverURL = UserDefaults.standard.string(forKey: "aesms.serverURL") ?? "http://127.0.0.1:8080"
         contacts = store.loadContacts()
         if let tok = Keychain.get("device_token"), !tok.isEmpty {
             deviceToken = tok
             phase = .mailbox
-            username = UserDefaults.standard.string(forKey: "t9.username") ?? ""
+            username = UserDefaults.standard.string(forKey: "aesms.username") ?? ""
         }
         _ = keys.loadOrCreateIdentity()
         PushService.shared.onToken = { [weak self] hex in
@@ -48,7 +48,7 @@ final class AppState: ObservableObject {
 
     func saveUsername(_ u: String) {
         username = u
-        UserDefaults.standard.set(u, forKey: "t9.username")
+        UserDefaults.standard.set(u, forKey: "aesms.username")
     }
 
     func lockMailbox() {

@@ -1,4 +1,4 @@
-# T-9 documentation
+# AeSMS.io documentation
 
 This folder is the written contract for the mailbox: what the product does, how the wire protocol works, who is trusted, and how each feature behaves in the current tree.
 
@@ -22,7 +22,7 @@ Those two documents are the canonical *product* spec. If a knowledge-base page a
 
 [knowledge-base/index.md](knowledge-base/index.md) is a maintainer-oriented map: one page per major functionality, plus shared concepts and integrations.
 
-It is generated from this repository as it exists today (Go `t9d` + SwiftUI iOS MVP). It does not invent Android, App Attest enforcement, APNs, or federation.
+It is generated from this repository as it exists today (Go `aesmsd` + SwiftUI iOS MVP). It does not invent Android, App Attest enforcement, APNs, or federation.
 
 ## Client notes
 

@@ -35,32 +35,32 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, `t9dev — local stand-in for the signed iOS app
+	fmt.Fprintf(os.Stderr, `aesmsdev — local stand-in for the signed iOS app
 
-  t9dev info
-  t9dev login
-  t9dev fetch
-  t9dev send -to USER -text "hello"
+  aesmsdev info
+  aesmsdev login
+  aesmsdev fetch
+  aesmsdev send -to USER -text "hello"
 
 Env:
-  T9_URL   default http://127.0.0.1:8080
-  T9_USER  username (login)
-  T9_PASS  password (login; otherwise prompted)
-  T9_HOME  token dir, default ~/.t9dev
+  AESMS_URL   default http://127.0.0.1:8080
+  AESMS_USER  username (login)
+  AESMS_PASS  password (login; otherwise prompted)
+  AESMS_HOME  token dir, default ~/.aesmsdev
 `)
 }
 
 func baseURL() string {
-	u := strings.TrimRight(envOr("T9_URL", "http://127.0.0.1:8080"), "/")
+	u := strings.TrimRight(envOr("AESMS_URL", "http://127.0.0.1:8080"), "/")
 	return u
 }
 
 func home() string {
-	if h := os.Getenv("T9_HOME"); h != "" {
+	if h := os.Getenv("AESMS_HOME"); h != "" {
 		return h
 	}
 	d, _ := os.UserHomeDir()
-	return filepath.Join(d, ".t9dev")
+	return filepath.Join(d, ".aesmsdev")
 }
 
 func tokenPath() string { return filepath.Join(home(), "device_token") }
@@ -75,7 +75,7 @@ func saveToken(tok string) error {
 func loadToken() (string, error) {
 	b, err := os.ReadFile(tokenPath())
 	if err != nil {
-		return "", fmt.Errorf("no device token — run: t9dev login")
+		return "", fmt.Errorf("no device token — run: aesmsdev login")
 	}
 	return strings.TrimSpace(string(b)), nil
 }
@@ -90,20 +90,20 @@ func cmdInfo() error {
 }
 
 func cmdLogin() error {
-	user := envOr("T9_USER", flagVal("-user"))
+	user := envOr("AESMS_USER", flagVal("-user"))
 	if user == "" {
 		user = prompt("username: ", false)
 	}
-	pass := envOr("T9_PASS", flagVal("-pass"))
+	pass := envOr("AESMS_PASS", flagVal("-pass"))
 	if pass == "" {
 		pass = prompt("password: ", true)
 	}
-	deviceID := envOr("T9_DEVICE", "t9dev-"+hostname())
+	deviceID := envOr("AESMS_DEVICE", "aesmsdev-"+hostname())
 	body, err := postJSON("/v1/device/login", "", map[string]any{
 		"username":  user,
 		"password":  pass,
 		"device_id": deviceID,
-		"assertion": "t9-ios-mvp-signed-placeholder",
+		"assertion": "aesms-ios-mvp-signed-placeholder",
 	})
 	if err != nil {
 		return err
@@ -152,7 +152,7 @@ func cmdSend() error {
 	to := flagVal("-to")
 	text := flagVal("-text")
 	if to == "" || text == "" {
-		return fmt.Errorf("usage: t9dev send -to USER -text \"hello\"")
+		return fmt.Errorf("usage: aesmsdev send -to USER -text \"hello\"")
 	}
 	n := utf8.RuneCountInString(text)
 	if n < 1 || n > 160 {

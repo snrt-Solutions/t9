@@ -15,7 +15,7 @@ actor APIClient {
             "username": username,
             "password": password,
             "device_id": deviceID,
-            "assertion": "t9-ios-mvp-signed-placeholder",
+            "assertion": "aesms-ios-mvp-signed-placeholder",
         ])
     }
 

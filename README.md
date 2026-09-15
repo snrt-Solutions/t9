@@ -1,12 +1,12 @@
-# T-9
+# AeSMS.io
 
 <p align="center">
-  <img src="brand/t9-mark.png" alt="T-9" width="160" height="160" />
+  <img src="brand/aesms-mark.png" alt="AeSMS.io" width="160" height="160" />
 </p>
 
 **Fetch-once messaging. Pure privacy but feels like SMS.** Self-host a blind Go mailbox. Ciphertext lives only on a signed iOS app. Browsers can create accounts, enroll TOTP, and release a pending device login — they never receive a mailbox session.
 
-T-9 is a same-server, no-PII messenger for people who want short sealed notes that disappear from the host after they are read. It is not a social network, not a webmail client, and not a multi-device chat platform.
+AeSMS.io is a same-server, no-PII messenger for people who want short sealed notes that disappear from the host after they are read. It is not a social network, not a webmail client, and not a multi-device chat platform.
 
 | Rule | Meaning |
 |------|---------|
@@ -17,7 +17,7 @@ T-9 is a same-server, no-PII messenger for people who want short sealed notes th
 | **No web login** | No account cookies, no browser inbox |
 | **No PII** | Opaque username, never email or phone |
 | **Physical QR contacts** | Address book stays on the device |
-| **Sealed disk** | SQLite at rest is AES-GCM wrapped with `T9_DB_KEY` |
+| **Sealed disk** | SQLite at rest is AES-GCM wrapped with `AESMS_DB_KEY` |
 
 Wire format and crypto details: [docs/PROTOCOL.md](docs/PROTOCOL.md). Adversaries and non-goals: [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md). Feature-level maintainer docs: [docs/knowledge-base/index.md](docs/knowledge-base/index.md).
 
@@ -25,7 +25,7 @@ Wire format and crypto details: [docs/PROTOCOL.md](docs/PROTOCOL.md). Adversarie
 
 ## Contents
 
-- [Why T-9 exists](#why-t-9-exists)
+- [Why AeSMS.io exists](#why-aesmsio-exists)
 - [How a message travels](#how-a-message-travels)
 - [Quick start](#quick-start)
 - [User journey](#user-journey)
@@ -42,14 +42,14 @@ Wire format and crypto details: [docs/PROTOCOL.md](docs/PROTOCOL.md). Adversarie
 
 ---
 
-## Why T-9 exists
+## Why AeSMS.io exists
 
-Most messengers keep history on a server, accept email or phone as identity, and treat the browser as a first-class client. T-9 inverts those defaults:
+Most messengers keep history on a server, accept email or phone as identity, and treat the browser as a first-class client. AeSMS.io inverts those defaults:
 
 1. **The server is a mailbox, not a reader.** It stores opaque ciphertext plus delivery metadata (who → whom, size, time). Private keys never leave the device.
 2. **Password theft is not enough to bind a mailbox.** Device login stays `pending` until the account owner types username + a live TOTP code on the web release page.
 3. **The browser is untrusted for mail.** Create, enroll, release, revoke. Never fetch. Responses always include `"session": null`, and `Set-Cookie` is stripped.
-4. **Contacts are a physical act.** There is no server address book, no search, no invite email. You scan (or paste) a `t9://contact` QR in person.
+4. **Contacts are a physical act.** There is no server address book, no search, no invite email. You scan (or paste) a `aesms://contact` QR in person.
 5. **Mail does not accumulate.** Fetch deletes. Expiry deletes. There is no “archive on the host.”
 
 If you need groups, media, push notifications, multi-device sync, or federation, this project is the wrong tool. Those are explicit MVP non-goals.
@@ -63,7 +63,7 @@ sequenceDiagram
     autonumber
     participant Web as Browser
     participant App as Signed iOS app
-    participant S as t9d mailbox
+    participant S as aesmsd mailbox
     participant Auth as Authenticator
 
     Web->>S: POST /v1/accounts (username, password)
@@ -98,12 +98,12 @@ cd deploy
 cp .env.example .env
 # Required secrets in .env (never commit):
 #   CLOUDFLARE_TUNNEL_TOKEN=...
-#   T9_BASE_URL=https://t9.snrt.tech
-#   T9_DB_KEY=...   # ≥16 chars
+#   AESMS_BASE_URL=https://app.aesms.io
+#   AESMS_DB_KEY=...   # ≥16 chars
 docker compose up -d --build
 ```
 
-Production path is **private origin**: Compose does **not** publish host ports. Clients use **https://t9.snrt.tech** (Cloudflare Tunnel → `cloudflared` → `http://t9:8080` on the Docker network).
+Production path is **private origin**: Compose does **not** publish host ports. Clients use **https://app.aesms.io** (Cloudflare Tunnel → `cloudflared` → `http://aesms:8080` on the Docker network).
 
 Full tunnel / DNS steps: [docs/knowledge-base/integrations/cloudflare-tunnel.md](docs/knowledge-base/integrations/cloudflare-tunnel.md).
 
@@ -114,18 +114,18 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
 # http://127.0.0.1:8080/setup.html
 ```
 
-If boot fails with a decrypt / authentication error, restore the original key, or wipe mailbox data once with `T9_RESET_DB=1 docker compose up -d --build` (then unset `T9_RESET_DB`).
+If boot fails with a decrypt / authentication error, restore the original key, or wipe mailbox data once with `AESMS_RESET_DB=1 docker compose up -d --build` (then unset `AESMS_RESET_DB`).
 
 ### Local Go (dev)
 
 Requires the Go toolchain declared in `server/go.mod` (Docker builds with Go 1.24+ and `GOTOOLCHAIN=auto`):
 
 ```bash
-export T9_DB_KEY='dev-only-change-me!!'
-export T9_DATA=./data
-export T9_LISTEN=:8080
-export T9_BASE_URL=http://127.0.0.1:8080
-cd server && go run ./cmd/t9d
+export AESMS_DB_KEY='dev-only-change-me!!'
+export AESMS_DATA=./data
+export AESMS_LISTEN=:8080
+export AESMS_BASE_URL=http://127.0.0.1:8080
+cd server && go run ./cmd/aesmsd
 ```
 
 Tests: `cd server && go test ./...`
@@ -163,14 +163,14 @@ Mailbox routes require `Authorization: Bearer <device_token>`. A pending id used
 Each app shows a QR:
 
 ```
-t9://contact?u=<username>&pk=<base64-x25519-pubkey>&srv=<server-fingerprint>
+aesms://contact?u=<username>&pk=<base64-x25519-pubkey>&srv=<server-fingerprint>
 ```
 
 Scanning (MVP: paste the payload) writes a **local** contact. The server never stores the graph. A `srv` mismatch against `GET /v1/info`’s `fingerprint` is warned, not silently ignored.
 
 ### 4. Send and fetch
 
-Composer seals UTF-8 plaintext to the recipient’s X25519 public key (ephemeral sender key + HKDF-SHA256 + AES-GCM, salt `t9-msg-v1`), then `POST /v1/messages`. Inbox `GET /v1/messages` is fetch-and-delete. Keep decrypted copies locally if you want history — the host will not.
+Composer seals UTF-8 plaintext to the recipient’s X25519 public key (ephemeral sender key + HKDF-SHA256 + AES-GCM, salt `aesms-msg-v1`), then `POST /v1/messages`. Inbox `GET /v1/messages` is fetch-and-delete. Keep decrypted copies locally if you want history — the host will not.
 
 ---
 
@@ -183,10 +183,10 @@ Composer seals UTF-8 plaintext to the recipient’s X25519 public key (ephemeral
 └──────────────────────────────┬──────────────────────────────┘
                                │  no cookies, credentials: omit
 ┌──────────────────────────────▼──────────────────────────────┐
-│  t9d  (Go, CGO-free)                                        │
+│  aesmsd  (Go, CGO-free)                                        │
 │  api/  auth/  store/  crypto/  purge/  webembed/            │
-│  sealed file: T9_DATA/t9.db.sealed                          │
-│  working SQLite: T9_DATA/.t9.work.db  (process lifetime)    │
+│  sealed file: AESMS_DATA/aesms.db.sealed                          │
+│  working SQLite: AESMS_DATA/.aesms.work.db  (process lifetime)    │
 └──────────────────────────────┬──────────────────────────────┘
                                │  TLS at tunnel / reverse proxy
 ┌──────────────────────────────▼──────────────────────────────┐
@@ -198,9 +198,9 @@ Composer seals UTF-8 plaintext to the recipient’s X25519 public key (ephemeral
 
 | Path | Role |
 |------|------|
-| `server/` | `t9d` HTTP API + embedded web UI |
+| `server/` | `aesmsd` HTTP API + embedded web UI |
 | `web/` | Source for create / release / operator pages (copied into the binary) |
-| `deploy/` | Dockerfile, Compose (`t9` + official `cloudflared`), optional local override |
+| `deploy/` | Dockerfile, Compose (`aesms` + official `cloudflared`), optional local override |
 | `ios/` | SwiftUI MVP client |
 | `docs/` | Protocol, threat model, knowledge base |
 | `scripts/sync-web.sh` | Copy `web/` → `server/internal/webembed/static/` |
@@ -231,7 +231,7 @@ All JSON APIs reject bodies that contain PII-shaped keys (`email`, `phone`, `pho
 
 ```json
 {
-  "name": "t9",
+  "name": "aesms",
   "web_login": false,
   "pii": false,
   "fetch_once": true,
@@ -258,17 +258,17 @@ Full request shapes: [docs/PROTOCOL.md](docs/PROTOCOL.md) and [docs/knowledge-ba
 
 | Variable | Required | Default | Notes |
 |----------|----------|---------|--------|
-| `T9_DB_KEY` | via UI or env | — | ≥16 chars. Prefer `/setup.html` (stored in volume). Keep stable. |
-| `T9_LISTEN` | no | `:8080` | Bind address |
-| `T9_DATA` | no | `./data` | Sealed DB + setup file (`/data` in Docker) |
-| `T9_BASE_URL` | via UI or env | `https://t9.snrt.tech` (Compose default) | Public origin used in release URLs |
-| `T9_RESET_DB` | no | unset | `1` / `true` / `yes` / `on` deletes sealed DB on boot |
+| `AESMS_DB_KEY` | via UI or env | — | ≥16 chars. Prefer `/setup.html` (stored in volume). Keep stable. |
+| `AESMS_LISTEN` | no | `:8080` | Bind address |
+| `AESMS_DATA` | no | `./data` | Sealed DB + setup file (`/data` in Docker) |
+| `AESMS_BASE_URL` | via UI or env | `https://app.aesms.io` (Compose default) | Public origin used in release URLs |
+| `AESMS_RESET_DB` | no | unset | `1` / `true` / `yes` / `on` deletes sealed DB on boot |
 | `CLOUDFLARE_TUNNEL_TOKEN` | yes (Tunnel) | — | Zero Trust tunnel token → `cloudflared` `TUNNEL_TOKEN`. Never commit |
-| `T9_LOCAL_PORT` | no | `8080` | Only with `docker-compose.local.yml` (loopback publish) |
-| `T9_APNS_*` | no | unset | Optional APNs HTTP/2 credentials for background push |
-| `T9_TURNSTILE_SITE_KEY` | no | unset | Cloudflare Turnstile site key (create UI) |
-| `T9_TURNSTILE_SECRET` | no | unset | Turnstile secret; empty skips captcha (dev). Set for internet-facing create |
-| `T9_RATE_LIMIT_DISABLED` | no | unset | `1` disables in-process per-source rate limits |
+| `AESMS_LOCAL_PORT` | no | `8080` | Only with `docker-compose.local.yml` (loopback publish) |
+| `AESMS_APNS_*` | no | unset | Optional APNs HTTP/2 credentials for background push |
+| `AESMS_TURNSTILE_SITE_KEY` | no | unset | Cloudflare Turnstile site key (create UI) |
+| `AESMS_TURNSTILE_SECRET` | no | unset | Turnstile secret; empty skips captcha (dev). Set for internet-facing create |
+| `AESMS_RATE_LIMIT_DISABLED` | no | unset | `1` disables in-process per-source rate limits |
 
 Hard-coded process timings (not env-tunable in this MVP):
 
@@ -282,23 +282,23 @@ Hard-coded process timings (not env-tunable in this MVP):
 
 ## Deployment
 
-`t9d` speaks HTTP. Production TLS is at Cloudflare via Tunnel. The binary does not terminate HTTPS itself.
+`aesmsd` speaks HTTP. Production TLS is at Cloudflare via Tunnel. The binary does not terminate HTTPS itself.
 
-### Cloudflare Tunnel (https://t9.snrt.tech)
+### Cloudflare Tunnel (https://app.aesms.io)
 
 See the full runbook: [docs/knowledge-base/integrations/cloudflare-tunnel.md](docs/knowledge-base/integrations/cloudflare-tunnel.md).
 
 1. Zero Trust → create tunnel → copy token into `deploy/.env` as `CLOUDFLARE_TUNNEL_TOKEN`.
-2. Public hostname: `t9.snrt.tech` → `http://t9:8080` (HTTP to the Compose service).
-3. Set `T9_BASE_URL=https://t9.snrt.tech` and `T9_DB_KEY`, then `docker compose up -d --build`.
-4. Enable Cloudflare WAF / Bot Fight; set `T9_TURNSTILE_*` for create captcha.
-5. Do **not** publish a public host port for `t9` — default compose uses `expose` only.
+2. Public hostname: `app.aesms.io` → `http://aesms:8080` (HTTP to the Compose service).
+3. Set `AESMS_BASE_URL=https://app.aesms.io` and `AESMS_DB_KEY`, then `docker compose up -d --build`.
+4. Enable Cloudflare WAF / Bot Fight; set `AESMS_TURNSTILE_*` for create captcha.
+5. Do **not** publish a public host port for `aesms` — default compose uses `expose` only.
 
 ### Data and keys
 
-Persistent volume: Compose `t9-data` → `/data`.
+Persistent volume: Compose `aesms-data` → `/data`.
 
-On disk when the process is **stopped**, operators should see `t9.db.sealed` (`T9DB1\n` + AES-256-GCM of the SQLite bytes) and a short `t9.db.keyfp` fingerprint of the master key. While `t9d` is **running**, a process-local `.t9.work.db` exists in plaintext so SQLite can work; it is removed on clean shutdown.
+On disk when the process is **stopped**, operators should see `aesms.db.sealed` (`AESMS1\n` + AES-256-GCM of the SQLite bytes) and a short `aesms.db.keyfp` fingerprint of the master key. While `aesmsd` is **running**, a process-local `.aesms.work.db` exists in plaintext so SQLite can work; it is removed on clean shutdown.
 
 This is whole-file seal + TOTP column encryption in pure Go. It is **not** SQLCipher page encryption. A live host is still in scope for RAM / disk forensics. See [docs/knowledge-base/concepts/database-encryption.md](docs/knowledge-base/concepts/database-encryption.md).
 
@@ -306,15 +306,15 @@ This is whole-file seal + TOTP column encryption in pure Go. It is **not** SQLCi
 
 ## iOS client
 
-Open `ios/T9.xcodeproj` in Xcode 15+ (iOS 17), set your Development Team, run on a device or simulator.
+Open `ios/AeSMS.xcodeproj` in Xcode 15+ (iOS 17), set your Development Team, run on a device or simulator.
 
 Screens: server URL → username/password → wait for web release → inbox / composer / QR contacts / settings (encrypted backup, revoke).
 
 - Identity keys and the device token sit in Keychain
 - Message crypto is CryptoKit X25519 + AES-GCM
-- Live camera scan is stubbed; paste `t9://contact?…` payloads (AVFoundation belongs in a signed distribution build)
-- App Attest is **not** implemented — `assertion` is the placeholder `t9-ios-mvp-signed-placeholder`
-- Bundle id: `app.t9.messenger` (see `ios/project.yml`)
+- Live camera scan is stubbed; paste `aesms://contact?…` payloads (AVFoundation belongs in a signed distribution build)
+- App Attest is **not** implemented — `assertion` is the placeholder `aesms-ios-mvp-signed-placeholder`
+- Bundle id: `io.aesms.app` (see `ios/project.yml`)
 
 Optional: regenerate the Xcode project with [XcodeGen](https://github.com/yonaskolb/XcodeGen) from `ios/project.yml`.
 

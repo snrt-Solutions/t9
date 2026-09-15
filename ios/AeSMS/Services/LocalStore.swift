@@ -7,7 +7,7 @@ final class LocalStore {
 
     init() {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-            .appendingPathComponent("T9", isDirectory: true)
+            .appendingPathComponent("AeSMS", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         contactsURL = dir.appendingPathComponent("contacts.json")
         messagesURL = dir.appendingPathComponent("kept-messages.json")

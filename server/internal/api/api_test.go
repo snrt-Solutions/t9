@@ -14,14 +14,14 @@ import (
 	"time"
 
 	"github.com/pquerna/otp/totp"
-	"github.com/t9-messenger/t9/server/internal/api"
-	"github.com/t9-messenger/t9/server/internal/captcha"
-	"github.com/t9-messenger/t9/server/internal/config"
-	"github.com/t9-messenger/t9/server/internal/crypto"
-	"github.com/t9-messenger/t9/server/internal/push"
-	"github.com/t9-messenger/t9/server/internal/ratelimit"
-	"github.com/t9-messenger/t9/server/internal/store"
-	"github.com/t9-messenger/t9/server/internal/webembed"
+	"github.com/aesms-io/aesms/server/internal/api"
+	"github.com/aesms-io/aesms/server/internal/captcha"
+	"github.com/aesms-io/aesms/server/internal/config"
+	"github.com/aesms-io/aesms/server/internal/crypto"
+	"github.com/aesms-io/aesms/server/internal/push"
+	"github.com/aesms-io/aesms/server/internal/ratelimit"
+	"github.com/aesms-io/aesms/server/internal/store"
+	"github.com/aesms-io/aesms/server/internal/webembed"
 )
 
 func testEnv(t *testing.T) (*api.Server, *store.Store, *config.Config) {
@@ -304,7 +304,7 @@ func TestSealedDBNotPlaintext(t *testing.T) {
 	}
 	_ = st.Close()
 
-	sealedPath := filepath.Join(dir, "t9.db.sealed")
+	sealedPath := filepath.Join(dir, "aesms.db.sealed")
 	raw, err := os.ReadFile(sealedPath)
 	if err != nil {
 		t.Fatal(err)
@@ -315,7 +315,7 @@ func TestSealedDBNotPlaintext(t *testing.T) {
 	if bytes.Contains(raw, []byte("TOTPSECRET")) {
 		t.Fatal("totp visible in sealed file")
 	}
-	if !strings.HasPrefix(string(raw), "T9DB1\n") {
+	if !strings.HasPrefix(string(raw), "AESMS1\n") {
 		t.Fatal("missing seal magic")
 	}
 	plain, err := crypto.OpenFile(key, raw)

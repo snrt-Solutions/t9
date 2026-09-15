@@ -7,8 +7,8 @@ Describe how the three surfaces (daemon, embedded web, iOS app) fit together so 
 ## Layout
 
 ```text
-t9/
-  server/cmd/t9d          process: config → store.Open → purge goroutine → HTTP
+aesms/
+  server/cmd/aesmsd          process: config → store.Open → purge goroutine → HTTP
   server/internal/api     routes, cookie filter, JSON handlers
   server/internal/store   SQLite schema, seal/unseal, domain operations
   server/internal/crypto  Argon2id, AES-GCM, HKDF, tokens
@@ -16,11 +16,11 @@ t9/
   server/internal/purge   1-minute expired-mail and enrollment cleanup
   server/internal/webembed  go:embed static UI
   web/                    HTML/CSS/JS source (sync or Docker COPY into embed)
-  ios/T9                  SwiftUI client
+  ios/AeSMS              SwiftUI client
   deploy/                 container + optional cloudflared
 ```
 
-`main` loads env, opens the store (decrypts `t9.db.sealed` into `.t9.work.db`), starts purge, serves `api.Handler()` which wraps the mux in a filter that **deletes `Set-Cookie` on every response**.
+`main` loads env, opens the store (decrypts `aesms.db.sealed` into `.aesms.work.db`), starts purge, serves `api.Handler()` which wraps the mux in a filter that **deletes `Set-Cookie` on every response**.
 
 ## Request path
 
@@ -31,7 +31,7 @@ Body limit is 1 MiB. JSON is parsed twice: once as `map[string]any` for PII key 
 
 ## Process data
 
-While running: plaintext working SQLite (max one connection). After mutations, `SealNow` checkpoints and writes `t9.db.sealed`. On SIGINT/SIGTERM, HTTP shutdown (10s) then `store.Close` seals and unlinks the working file.
+While running: plaintext working SQLite (max one connection). After mutations, `SealNow` checkpoints and writes `aesms.db.sealed`. On SIGINT/SIGTERM, HTTP shutdown (10s) then `store.Close` seals and unlinks the working file.
 
 ## Client architecture
 

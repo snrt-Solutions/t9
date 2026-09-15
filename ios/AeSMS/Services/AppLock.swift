@@ -2,7 +2,7 @@ import Foundation
 import LocalAuthentication
 
 enum AppLock {
-    static func authenticate(reason: String = "Unlock T-9") async -> Bool {
+    static func authenticate(reason: String = "Unlock AeSMS") async -> Bool {
         let ctx = LAContext()
         ctx.localizedCancelTitle = "Cancel"
         var err: NSError?

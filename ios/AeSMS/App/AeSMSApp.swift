@@ -2,7 +2,7 @@ import SwiftUI
 import UIKit
 
 @main
-struct T9App: App {
+struct AeSMSApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var appState = AppState()
     @Environment(\.scenePhase) private var scenePhase

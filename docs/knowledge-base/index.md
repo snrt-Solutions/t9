@@ -1,6 +1,6 @@
-# T-9 knowledge base
+# AeSMS.io knowledge base
 
-T-9 is a self-hosted **fetch-once** mailbox. The Go daemon (`t9d`) stores ciphertext and delivery metadata. The signed iOS app holds identity keys and the only credential that can send or fetch mail. The embedded website creates accounts, enrolls TOTP, and releases pending device logins — it never issues a mailbox session.
+AeSMS.io is a self-hosted **fetch-once** mailbox. The Go daemon (`aesmsd`) stores ciphertext and delivery metadata. The signed iOS app holds identity keys and the only credential that can send or fetch mail. The embedded website creates accounts, enrolls TOTP, and releases pending device logins — it never issues a mailbox session.
 
 This knowledge base describes behavior that exists in the current repository. It is not a roadmap.
 
@@ -46,7 +46,7 @@ GitHub-facing overview: [../../README.md](../../README.md).
 
 ## Scope and assumptions
 
-- Source of truth is `server/` and `ios/`, plus `web/` as embedded by `t9d`.
+- Source of truth is `server/` and `ios/`, plus `web/` as embedded by `aesmsd`.
 - App Attest, Android, APNs, groups, media, and federation are **not** implemented; they are mentioned only as gaps.
 - Contact QR camera scanning is paste-only in this MVP.
 - Backup key derivation is iterated SHA-256, not Argon2, despite earlier protocol wording (corrected in PROTOCOL.md).

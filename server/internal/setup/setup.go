@@ -11,11 +11,11 @@ import (
 )
 
 const (
-	FileName   = "t9.setup.json"
+	FileName   = "aesms.setup.json"
 	TunnelFile = "cloudflare.token"
 )
 
-// File is persisted under T9_DATA so operators never edit host files.
+// File is persisted under AESMS_DATA so operators never edit host files.
 type File struct {
 	BaseURL     string `json:"base_url"`
 	DBKey       string `json:"db_key"`

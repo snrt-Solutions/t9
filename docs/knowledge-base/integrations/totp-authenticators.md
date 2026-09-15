@@ -2,13 +2,13 @@
 
 ## Purpose
 
-T-9 has no built-in authenticator. Enrollment emits a standard `otpauth` key that any TOTP app can hold. Those codes are the web-side gate for account activation, device release, and optional revoke.
+AeSMS.io has no built-in authenticator. Enrollment emits a standard `otpauth` key that any TOTP app can hold. Those codes are the web-side gate for account activation, device release, and optional revoke.
 
 ## Parameters
 
 Generated with `pquerna/otp`:
 
-- Issuer: `T9`
+- Issuer: `AeSMS`
 - Account name: username
 - Period: 30 seconds
 - Digits: 6

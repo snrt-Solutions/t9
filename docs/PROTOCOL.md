@@ -1,4 +1,4 @@
-# T-9 Protocol
+# AeSMS.io Protocol
 
 Self-hosted, fetch-once, E2E mailbox. Same-server only. No PII. No web account sessions.
 
@@ -8,7 +8,7 @@ Self-hosted, fetch-once, E2E mailbox. Same-server only. No PII. No web account s
 |--------|------|
 | Username | Opaque handle `[A-Za-z0-9_]{3,32}` — not an email |
 | Password | Argon2id hash on server |
-| TOTP | Mandatory; secret sealed in DB under `T9_DB_KEY` |
+| TOTP | Mandatory; secret sealed in DB under `AESMS_DB_KEY` |
 | Device | One bound signed app per account |
 | Web | Create + TOTP enroll + release pending login only |
 
@@ -62,7 +62,7 @@ Active accounts are never removed this way.
 ## Contact QR (client-local)
 
 ```
-t9://contact?u=<username>&pk=<base64url-curve25519-pubkey>&srv=<server-fingerprint>
+aesms://contact?u=<username>&pk=<base64url-curve25519-pubkey>&srv=<server-fingerprint>
 ```
 
 Scanning creates a **local** contact only. Server never stores the contact graph. Apps should warn on `srv` mismatch vs configured server fingerprint.
@@ -83,10 +83,10 @@ Encrypted archive of identity keys + contacts (not the device token):
 
 ## Database encryption at rest
 
-- Env: **`T9_DB_KEY`** (required, ≥16 chars)
-- Persistent file: `T9_DATA/t9.db.sealed` = magic `T9DB1\n` + AES-256-GCM(HKDF(T9_DB_KEY,"t9-db-file-v1"), sqlite_bytes)
+- Env: **`AESMS_DB_KEY`** (required, ≥16 chars)
+- Persistent file: `AESMS_DATA/aesms.db.sealed` = magic `AESMS1\n` + AES-256-GCM(HKDF(AESMS_DB_KEY,"aesms-db-file-v1"), sqlite_bytes)
 - TOTP secrets also column-encrypted with a separate HKDF key (`t9-column-v1`)
-- While `t9d` runs, a process-local working SQLite file may exist under `T9_DATA`; it is removed on clean shutdown. Disk images of a powered-off host should only see the sealed blob.
+- While `aesmsd` runs, a process-local working SQLite file may exist under `AESMS_DATA`; it is removed on clean shutdown. Disk images of a powered-off host should only see the sealed blob.
 
 This is **not** SQLCipher page encryption; it is whole-file seal + sensitive-column encryption, chosen for a pure-Go, CGO-free, auditable binary.
 

@@ -2,7 +2,7 @@
 
 | File | Use |
 |------|-----|
-| `t9-mark.png` | Master mark (1024×1024) — README, site, OG |
+| `aesms-mark.png` | Master mark (1024×1024) — README, site, OG |
 | `github-avatar.png` | Same mark for GitHub org/user/repo avatar upload |
 
 Web runtime copies live under `web/img/` (favicon sizes + mark).

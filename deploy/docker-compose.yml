@@ -1,32 +1,32 @@
 services:
-  t9:
+  aesms:
     build:
       context: ..
       dockerfile: deploy/Dockerfile
-    container_name: t9
+    container_name: aesms
     restart: unless-stopped
     environment:
-      T9_LISTEN: ":8080"
-      T9_DATA: /data
-      # Prefer https://t9.snrt.tech when the tunnel is the public origin.
-      T9_BASE_URL: ${T9_BASE_URL:-https://t9.snrt.tech}
-      T9_DB_KEY: ${T9_DB_KEY:-}
-      T9_RESET_DB: ${T9_RESET_DB:-}
-      T9_APNS_KEY_ID: ${T9_APNS_KEY_ID:-}
-      T9_APNS_TEAM_ID: ${T9_APNS_TEAM_ID:-}
-      T9_APNS_KEY_PATH: ${T9_APNS_KEY_PATH:-}
-      T9_APNS_BUNDLE_ID: ${T9_APNS_BUNDLE_ID:-app.t9.messenger}
-      T9_APNS_PRODUCTION: ${T9_APNS_PRODUCTION:-}
-      T9_TURNSTILE_SITE_KEY: ${T9_TURNSTILE_SITE_KEY:-}
-      T9_TURNSTILE_SECRET: ${T9_TURNSTILE_SECRET:-}
-      T9_RATE_LIMIT_DISABLED: ${T9_RATE_LIMIT_DISABLED:-}
+      AESMS_LISTEN: ":8080"
+      AESMS_DATA: /data
+      # Prefer https://app.aesms.io when the tunnel is the public origin.
+      AESMS_BASE_URL: ${AESMS_BASE_URL:-https://app.aesms.io}
+      AESMS_DB_KEY: ${AESMS_DB_KEY:-}
+      AESMS_RESET_DB: ${AESMS_RESET_DB:-}
+      AESMS_APNS_KEY_ID: ${AESMS_APNS_KEY_ID:-}
+      AESMS_APNS_TEAM_ID: ${AESMS_APNS_TEAM_ID:-}
+      AESMS_APNS_KEY_PATH: ${AESMS_APNS_KEY_PATH:-}
+      AESMS_APNS_BUNDLE_ID: ${AESMS_APNS_BUNDLE_ID:-io.aesms.app}
+      AESMS_APNS_PRODUCTION: ${AESMS_APNS_PRODUCTION:-}
+      AESMS_TURNSTILE_SITE_KEY: ${AESMS_TURNSTILE_SITE_KEY:-}
+      AESMS_TURNSTILE_SECRET: ${AESMS_TURNSTILE_SECRET:-}
+      AESMS_RATE_LIMIT_DISABLED: ${AESMS_RATE_LIMIT_DISABLED:-}
     volumes:
-      - t9-data:/data
+      - aesms-data:/data
     # Private origin: reachable only on the Compose network (not published on the host).
     expose:
       - "8080"
     networks:
-      - t9-net
+      - aesms-net
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/v1/health"]
       interval: 30s
@@ -36,22 +36,22 @@ services:
 
   cloudflared:
     image: cloudflare/cloudflared:latest
-    container_name: t9-cloudflared
+    container_name: aesms-cloudflared
     restart: unless-stopped
     command: tunnel --no-autoupdate run
     environment:
       # Official cloudflared env name; value comes from deploy/.env (never commit).
       TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?Set CLOUDFLARE_TUNNEL_TOKEN in deploy/.env}
     depends_on:
-      - t9
+      - aesms
     networks:
-      - t9-net
+      - aesms-net
     # Do not mount secrets into the image; do not publish ports.
-    # Public hostname (t9.snrt.tech → http://t9:8080) is configured in Cloudflare Zero Trust.
+    # Public hostname (app.aesms.io → http://aesms:8080) is configured in Cloudflare Zero Trust.
 
 networks:
-  t9-net:
+  aesms-net:
     driver: bridge
 
 volumes:
-  t9-data:
+  aesms-data:

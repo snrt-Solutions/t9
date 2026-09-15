@@ -93,7 +93,7 @@ func (a *APNs) Notify(deviceToken string) {
 	if a.prod {
 		host = "https://api.push.apple.com"
 	}
-	body := []byte(`{"aps":{"alert":{"title":"T-9","body":"New message"},"sound":"default"}}`)
+	body := []byte(`{"aps":{"alert":{"title":"AeSMS","body":"New message"},"sound":"default"}}`)
 	req, err := http.NewRequest(http.MethodPost, host+"/3/device/"+deviceToken, bytes.NewReader(body))
 	if err != nil {
 		return

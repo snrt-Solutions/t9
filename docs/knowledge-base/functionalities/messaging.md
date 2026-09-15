@@ -14,7 +14,7 @@ Recipients get mail without leaving a host-side archive. Operators cannot read p
 
 1. User picks a local contact username and types ≤160 graphemes.
 2. App looks up that contact’s X25519 public key (server has no address book).
-3. App seals UTF-8 plaintext: ephemeral X25519 + HKDF-SHA256 (salt `t9-msg-v1`) + AES-GCM. Wire bytes: `ephemeral_pub (32) || nonce (12) || ciphertext || tag (16)`.
+3. App seals UTF-8 plaintext: ephemeral X25519 + HKDF-SHA256 (salt `aesms-msg-v1`) + AES-GCM. Wire bytes: `ephemeral_pub (32) || nonce (12) || ciphertext || tag (16)`.
 4. `POST /v1/messages` with Bearer device token, `to_username`, base64 `ciphertext`, `graphemes`, optional sender `pubkey`.
 5. Server checks token, grapheme range 1–160, ciphertext non-empty and ≤4096 bytes, recipient exists and is active. Optionally stores sender pubkey on the sender account. Inserts the message with `expires_at = now + 24h`. Returns `id` and `expires_at`.
 
@@ -82,7 +82,7 @@ Local `LocalMessage`: id, from username, plaintext, createdAt, keptLocally.
 - `server/internal/api/api.go` — `handlePostMessage`, `handleGetMessages`
 - `server/internal/store/store.go` — insert / fetch-and-delete / purge
 - `server/internal/purge/purge.go`
-- `ios/T9/Services/Crypto.swift`, `ios/T9/Views/ComposerView.swift`, `ios/T9/Views/InboxView.swift`
+- `ios/AeSMS/Services/Crypto.swift`, `ios/AeSMS/Views/ComposerView.swift`, `ios/AeSMS/Views/InboxView.swift`
 - Tests: `TestMessagesRejectNonDeviceToken`, `TestFetchOnceDeletes`
 
 ## Related Documentation

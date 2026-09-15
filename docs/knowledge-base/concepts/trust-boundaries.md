@@ -14,7 +14,7 @@ State who is trusted with which secrets. Matches [THREAT_MODEL.md](../../THREAT_
 
 ## TLS
 
-`t9d` speaks HTTP. Confidentiality on the wire depends on the reverse proxy or Cloudflare Tunnel in front. E2E ciphertext still helps if TLS is terminated by a curious proxy; metadata may leak. Prefer Tunnel + Cloudflare WAF for public exposure; avoid dual-publishing a public origin port.
+`aesmsd` speaks HTTP. Confidentiality on the wire depends on the reverse proxy or Cloudflare Tunnel in front. E2E ciphertext still helps if TLS is terminated by a curious proxy; metadata may leak. Prefer Tunnel + Cloudflare WAF for public exposure; avoid dual-publishing a public origin port.
 
 ## Adversary cheatsheet
 
@@ -23,7 +23,7 @@ State who is trusted with which secrets. Matches [THREAT_MODEL.md](../../THREAT_
 | Network eavesdropper | TLS + E2E |
 | Password thief | TOTP release gate |
 | Stolen browser cookie | No cookies |
-| Disk theft (host off) | `T9_DB_KEY` sealed file |
+| Disk theft (host off) | `AESMS_DB_KEY` sealed file |
 | Unsigned client (MVP) | Only weakly; attestation later |
 | Malicious operator | Blind ciphertext; not metadata |
 | Signup bots / Argon2 flood | Turnstile + rate limits + unknown-field rejection |

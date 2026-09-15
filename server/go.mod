@@ -1,4 +1,4 @@
-module github.com/t9-messenger/t9/server
+module github.com/aesms-io/aesms/server
 
 go 1.26.0
 

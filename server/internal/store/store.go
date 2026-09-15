@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/t9-messenger/t9/server/internal/crypto"
+	"github.com/aesms-io/aesms/server/internal/crypto"
 
 	_ "modernc.org/sqlite"
 )
@@ -36,14 +36,15 @@ var (
 )
 
 type Store struct {
-	db       *sql.DB
-	mu       sync.Mutex
-	dataDir  string
-	sealed   string // path to encrypted file on disk
-	workPath string // plaintext working sqlite (process-local)
-	master   []byte
-	colKey   []byte
-	fp       string
+	db           *sql.DB
+	mu           sync.Mutex
+	dataDir      string
+	sealed       string // path to encrypted file on disk
+	workPath     string // plaintext working sqlite (process-local)
+	master       []byte
+	colKey       []byte
+	colKeyLegacy []byte // pre-rename TOTP column key
+	fp           string
 }
 
 type Account struct {
@@ -92,15 +93,17 @@ func Open(dataDir string, master []byte) (*Store, error) {
 	if err := os.MkdirAll(dataDir, 0o700); err != nil {
 		return nil, err
 	}
-	sealed := filepath.Join(dataDir, "t9.db.sealed")
-	keyFPPath := filepath.Join(dataDir, "t9.db.keyfp")
-	workPath := filepath.Join(dataDir, ".t9.work.db")
+	migrateLegacyDataFiles(dataDir)
+
+	sealed := filepath.Join(dataDir, "aesms.db.sealed")
+	keyFPPath := filepath.Join(dataDir, "aesms.db.keyfp")
+	workPath := filepath.Join(dataDir, ".aesms.work.db")
 	_ = os.Remove(workPath)
 
 	sum := sha256.Sum256(master)
 	masterFP := fmt.Sprintf("%x", sum[:8])
 
-	if envTruthy("T9_RESET_DB") {
+	if envTruthy("AESMS_RESET_DB") {
 		_ = os.Remove(sealed)
 		_ = os.Remove(keyFPPath)
 	}
@@ -113,11 +116,11 @@ func Open(dataDir string, master []byte) (*Store, error) {
 		storedFP, _ := os.ReadFile(keyFPPath)
 		plain, err := crypto.OpenFile(master, raw)
 		if err != nil {
-			hint := "T9_DB_KEY does not match the sealed database (or the file is corrupt). " +
-				"Restore the original key, or recreate data with T9_RESET_DB=1 once " +
+			hint := "AESMS_DB_KEY does not match the sealed database (or the file is corrupt). " +
+				"Restore the original key, or recreate data with AESMS_RESET_DB=1 once " +
 				"(destroys mailbox data), or remove the Docker volume."
 			if len(storedFP) > 0 && string(storedFP) != masterFP {
-				hint = fmt.Sprintf("T9_DB_KEY fingerprint mismatch (stored=%s current=%s). %s",
+				hint = fmt.Sprintf("AESMS_DB_KEY fingerprint mismatch (stored=%s current=%s). %s",
 					string(storedFP), masterFP, hint)
 			}
 			return nil, fmt.Errorf("%s: %w", hint, err)
@@ -136,12 +139,13 @@ func Open(dataDir string, master []byte) (*Store, error) {
 	db.SetMaxOpenConns(1)
 
 	s := &Store{
-		db:       db,
-		dataDir:  dataDir,
-		sealed:   sealed,
-		workPath: workPath,
-		master:   append([]byte(nil), master...),
-		colKey:   crypto.DeriveAESKey(master, "t9-column-v1"),
+		db:           db,
+		dataDir:      dataDir,
+		sealed:       sealed,
+		workPath:     workPath,
+		master:       append([]byte(nil), master...),
+		colKey:       crypto.DeriveAESKey(master, crypto.ColumnHKDF),
+		colKeyLegacy: crypto.DeriveAESKey(master, crypto.ColumnHKDFLegacy),
 	}
 	if err := s.migrate(); err != nil {
 		_ = db.Close()
@@ -273,10 +277,32 @@ func (s *Store) encryptCol(plain string) ([]byte, error) {
 
 func (s *Store) decryptCol(sealed []byte) (string, error) {
 	b, err := crypto.Open(s.colKey, sealed, []byte("totp"))
+	if err != nil && len(s.colKeyLegacy) > 0 {
+		b, err = crypto.Open(s.colKeyLegacy, sealed, []byte("totp"))
+	}
 	if err != nil {
 		return "", err
 	}
 	return string(b), nil
+}
+
+// migrateLegacyDataFiles renames pre-rename on-disk paths when present.
+func migrateLegacyDataFiles(dataDir string) {
+	type pair struct{ old, neu string }
+	for _, p := range []pair{
+		{"t9.db.sealed", "aesms.db.sealed"},
+		{"t9.db.keyfp", "aesms.db.keyfp"},
+		{"t9.setup.json", "aesms.setup.json"},
+	} {
+		old := filepath.Join(dataDir, p.old)
+		neu := filepath.Join(dataDir, p.neu)
+		if _, err := os.Stat(neu); err == nil {
+			continue
+		}
+		if _, err := os.Stat(old); err == nil {
+			_ = os.Rename(old, neu)
+		}
+	}
 }
 
 func nowUTC() time.Time { return time.Now().UTC() }

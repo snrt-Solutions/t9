@@ -1,4 +1,4 @@
-# T-9 Threat Model
+# AeSMS.io Threat Model
 
 ## Assets
 
@@ -17,7 +17,7 @@
 | Malicious server operator | Read mail / impersonate | Blind mailbox; no private keys server-side; operator still sees metadata (who→whom, sizes, times) |
 | Password thief | Bind attacker device | Web TOTP **release gate**; password alone leaves login `pending` |
 | Stolen browser cookie | Hijack account | **No web account sessions / cookies** |
-| Disk theft (offline host) | Dump DB | `T9_DB_KEY` sealed SQLite + column crypto |
+| Disk theft (offline host) | Dump DB | `AESMS_DB_KEY` sealed SQLite + column crypto |
 | Compromised unsigned client | Forge device bind | MVP relies on signed distribution; App Attest later |
 | Curious CDN / Tunnel provider | Observe traffic | Still ciphertext; metadata leakage possible |
 | Signup bot / scripted create | Exhaust usernames, burn CPU on Argon2 | Cloudflare Turnstile on `POST /v1/accounts`; unknown-JSON rejection; per-source rate limits |
@@ -38,7 +38,7 @@
 2. **Signed iOS app** — holds keys + device token; only path to ciphertext APIs.
 3. **Server** — enforces authz, TTL, fetch-once; must not learn plaintext.
 4. **Physical proximity** — contact QR exchange; no server address book.
-5. **Edge (Cloudflare Tunnel)** — may terminate TLS and supply `CF-Connecting-IP`. `t9d` trusts that header only when the immediate peer is private/loopback (Docker/tunnel hop).
+5. **Edge (Cloudflare Tunnel)** — may terminate TLS and supply `CF-Connecting-IP`. `aesmsd` trusts that header only when the immediate peer is private/loopback (Docker/tunnel hop).
 
 ## Residual risks
 
