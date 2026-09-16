@@ -41,7 +41,8 @@ services:
     command: tunnel --no-autoupdate run
     environment:
       # Official cloudflared env name; value comes from deploy/.env (never commit).
-      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?Set CLOUDFLARE_TUNNEL_TOKEN in deploy/.env}
+      # Required when this service runs (production / --profile tunnel). Optional for local FE.
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
     depends_on:
       - aesms
     networks:

@@ -1,13 +1,21 @@
-# Optional local admin access (loopback only). Does not publish a public host port.
+# Local FE / loopback only — no Cloudflare Tunnel.
 #
 # Usage (from deploy/):
 #   docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
 #
-# Then open http://127.0.0.1:8080/setup.html on the Docker host.
-# Prefer env-based first boot (AESMS_DB_KEY + AESMS_BASE_URL + CLOUDFLARE_TUNNEL_TOKEN)
-# so the default compose file stays private-origin (no host ports).
+# Then open http://127.0.0.1:8080/ (Create / Release / Status).
+# CLOUDFLARE_TUNNEL_TOKEN is not required. cloudflared is not started.
+#
+# First boot without AESMS_DB_KEY in .env → http://127.0.0.1:8080/setup.html
+# Prefer AESMS_DB_KEY in .env to skip setup UI.
 
 services:
   aesms:
     ports:
       - "127.0.0.1:${AESMS_LOCAL_PORT:-8080}:8080"
+    environment:
+      AESMS_BASE_URL: http://127.0.0.1:${AESMS_LOCAL_PORT:-8080}
+
+  cloudflared:
+    # Keep production compose unchanged; local override opts the tunnel out.
+    profiles: ["tunnel"]

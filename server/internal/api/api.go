@@ -95,9 +95,9 @@ func (c *cookieFilter) Write(b []byte) (int, error) {
 func (s *Server) routes() {
 	s.Mux.HandleFunc("GET /v1/health", s.handleHealth)
 	s.Mux.HandleFunc("GET /v1/info", s.handleInfo)
-	s.Mux.HandleFunc("GET /v1/setup", s.handleSetupGet)
-	s.Mux.HandleFunc("POST /v1/setup", s.handleSetupPost)
-	s.Mux.HandleFunc("POST /v1/setup/generate-key", s.handleSetupGenerateKey)
+	s.Mux.HandleFunc("GET /v1/setup", s.requireSetupMode(s.handleSetupGet))
+	s.Mux.HandleFunc("POST /v1/setup", s.requireSetupMode(s.handleSetupPost))
+	s.Mux.HandleFunc("POST /v1/setup/generate-key", s.requireSetupMode(s.handleSetupGenerateKey))
 
 	s.Mux.HandleFunc("POST /v1/accounts", s.requireReady(s.handleCreateAccount))
 	s.Mux.HandleFunc("POST /v1/accounts/totp/confirm", s.requireReady(s.handleConfirmTOTP))
@@ -112,7 +112,7 @@ func (s *Server) routes() {
 	s.Mux.HandleFunc("GET /v1/messages", s.requireReady(s.handleGetMessages))
 	if s.Static != nil {
 		s.Mux.HandleFunc("GET /{$}", s.handleRoot)
-		s.Mux.Handle("GET /setup.html", s.Static)
+		s.Mux.HandleFunc("GET /setup.html", s.handleSetupHTML)
 		s.Mux.Handle("GET /release.html", s.Static)
 		s.Mux.Handle("GET /status.html", s.Static)
 		s.Mux.Handle("GET /assets/", s.Static)
@@ -129,9 +129,30 @@ func (s *Server) requireReady(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+// requireSetupMode exposes first-boot setup only while the mailbox is unconfigured.
+func (s *Server) requireSetupMode(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !s.Cfg.SetupNeeded {
+			http.NotFound(w, r)
+			return
+		}
+		next(w, r)
+	}
+}
+
 func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
 	if s.Cfg.SetupNeeded {
 		http.Redirect(w, r, "/setup.html", http.StatusFound)
+		return
+	}
+	if s.Static != nil {
+		s.Static.ServeHTTP(w, r)
+	}
+}
+
+func (s *Server) handleSetupHTML(w http.ResponseWriter, r *http.Request) {
+	if !s.Cfg.SetupNeeded {
+		http.NotFound(w, r)
 		return
 	}
 	if s.Static != nil {

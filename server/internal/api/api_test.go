@@ -590,3 +590,59 @@ func TestUnfinishedEnrollmentReleasesUsername(t *testing.T) {
 		t.Fatalf("active username must stay taken: %d %#v", code, out)
 	}
 }
+
+func TestSetupHiddenWhenConfigured(t *testing.T) {
+	srv, _, _ := testEnv(t)
+	h := srv.Handler()
+
+	req := httptest.NewRequest("GET", "/setup.html", nil)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+	if rr.Code != http.StatusNotFound {
+		t.Fatalf("setup.html when configured: %d", rr.Code)
+	}
+
+	code, _, _ := doJSON(t, h, "GET", "/v1/setup", nil, nil)
+	if code != http.StatusNotFound {
+		t.Fatalf("GET /v1/setup when configured: %d", code)
+	}
+	code, _, _ = doJSON(t, h, "POST", "/v1/setup/generate-key", map[string]any{}, nil)
+	if code != http.StatusNotFound {
+		t.Fatalf("POST /v1/setup/generate-key when configured: %d", code)
+	}
+	code, _, _ = doJSON(t, h, "POST", "/v1/setup", map[string]any{
+		"base_url": "https://evil.example",
+		"db_key":   "should-not-be-accepted!!",
+	}, nil)
+	if code != http.StatusNotFound {
+		t.Fatalf("POST /v1/setup when configured: %d", code)
+	}
+}
+
+func TestSetupAvailableWhenNeeded(t *testing.T) {
+	dir := t.TempDir()
+	cfg := &config.Config{
+		Listen:      ":0",
+		DataDir:     dir,
+		SetupNeeded: true,
+		PendingTTL:  15 * time.Minute,
+		MessageTTL:  24 * time.Hour,
+		EnrollTTL:   15 * time.Minute,
+		PurgeEvery:  time.Minute,
+		TokenBytes:  32,
+	}
+	srv := api.New(cfg, nil, webembed.Handler(), push.NewHub(), nil)
+	h := srv.Handler()
+
+	req := httptest.NewRequest("GET", "/setup.html", nil)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("setup.html when needed: %d", rr.Code)
+	}
+
+	code, _, out := doJSON(t, h, "GET", "/v1/setup", nil, nil)
+	if code != http.StatusOK || out["configured"] != false {
+		t.Fatalf("GET /v1/setup when needed: %d %#v", code, out)
+	}
+}

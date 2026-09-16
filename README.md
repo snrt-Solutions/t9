@@ -107,11 +107,11 @@ Production path is **private origin**: Compose does **not** publish host ports. 
 
 Full tunnel / DNS steps: [docs/knowledge-base/integrations/cloudflare-tunnel.md](docs/knowledge-base/integrations/cloudflare-tunnel.md).
 
-Optional first-boot UI on the Docker host only (loopback):
+Local FE (loopback, no tunnel / no `CLOUDFLARE_TUNNEL_TOKEN`):
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
-# http://127.0.0.1:8080/setup.html
+# http://127.0.0.1:8080/
 ```
 
 If boot fails with a decrypt / authentication error, restore the original key, or wipe mailbox data once with `AESMS_RESET_DB=1 docker compose up -d --build` (then unset `AESMS_RESET_DB`).
