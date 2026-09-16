@@ -17,11 +17,15 @@ struct AeSMSApp: App {
                     case .active:
                         if appState.phase == .mailbox {
                             appState.startPushIfNeeded()
+                            if appState.unlocked {
+                                Task { await appState.fetchInboxQuiet() }
+                            }
                         }
                     case .background:
                         if appState.phase == .mailbox {
                             appState.lockMailbox()
                             appState.stopPush()
+                            appState.syncAppBadge()
                         }
                     case .inactive:
                         break
@@ -40,5 +44,13 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
         // Simulator / unsigned builds: SSE still delivers while the app is foregrounded.
+    }
+
+    func application(
+        _ application: UIApplication,
+        didReceiveRemoteNotification userInfo: [AnyHashable: Any],
+        fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void
+    ) {
+        PushService.handleRemoteNotification(userInfo: userInfo, fetchCompletionHandler: completionHandler)
     }
 }

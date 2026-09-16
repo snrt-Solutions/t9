@@ -7,14 +7,21 @@ struct MailboxTabView: View {
         TabView {
             InboxView()
                 .tabItem { Label("Chats", systemImage: "bubble.left.and.bubble.right") }
+                .badge(app.unreadTotal == 0 ? nil : Text("\(app.unreadTotal)"))
+
             ComposerView()
                 .tabItem { Label("Compose", systemImage: "square.and.pencil") }
+
             ContactsView()
-                .tabItem { Label("Contacts", systemImage: "qrcode") }
+                .tabItem { Label("Contacts", systemImage: "person.crop.rectangle") }
+
             SettingsView()
                 .tabItem { Label("Settings", systemImage: "gearshape") }
         }
         .tint(T9Theme.accent)
-        .onAppear { app.startPushIfNeeded() }
+        .onAppear {
+            app.startPushIfNeeded()
+            Task { await app.fetchInboxQuiet() }
+        }
     }
 }

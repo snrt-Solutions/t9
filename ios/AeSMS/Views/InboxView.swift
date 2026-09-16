@@ -12,16 +12,13 @@ struct InboxView: View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 0) {
                 header
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
 
                 if chats.isEmpty {
-                    Text("No chats yet")
-                        .font(T9Theme.font(15))
-                        .foregroundStyle(T9Theme.muted)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 28)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    EmptyStateBlock(
+                        title: "No chats yet",
+                        detail: "Fetch sealed messages, or compose one to a QR contact."
+                    )
+                    .padding(.horizontal, T9Theme.pageInset)
                     Spacer(minLength: 0)
                 } else {
                     List {
@@ -31,8 +28,13 @@ struct InboxView: View {
                             } label: {
                                 chatRow(chat)
                             }
-                            .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 16))
-                            .listRowSeparatorTint(T9Theme.hair.opacity(0.25))
+                            .listRowInsets(EdgeInsets(
+                                top: 14,
+                                leading: T9Theme.pageInset,
+                                bottom: 14,
+                                trailing: T9Theme.pageInset
+                            ))
+                            .listRowSeparatorTint(T9Theme.hair.opacity(0.12))
                             .listRowBackground(T9Theme.bg)
                             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                 Button(role: .destructive) {
@@ -60,11 +62,28 @@ struct InboxView: View {
                     Text(app.statusLine)
                         .font(T9Theme.font(12))
                         .foregroundStyle(T9Theme.muted)
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 12)
+                        .padding(.horizontal, T9Theme.pageInset)
+                        .padding(.vertical, 10)
                 }
             }
             .background(T9Theme.bg.ignoresSafeArea())
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        Task { await fetch() }
+                    } label: {
+                        if busy {
+                            ProgressView()
+                        } else {
+                            Text("Fetch")
+                                .font(T9Theme.font(14, .semibold))
+                        }
+                    }
+                    .tint(T9Theme.accent)
+                    .disabled(busy)
+                    .accessibilityLabel("Fetch inbox")
+                }
+            }
             .confirmationDialog(
                 "Delete chat with \(pendingDeleteChat?.username ?? "")?",
                 isPresented: $confirmDeleteChat,
@@ -86,64 +105,68 @@ struct InboxView: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
                 Text("Chats")
-                    .font(T9Theme.font(28, .bold))
+                    .font(T9Theme.font(26, .bold))
                     .foregroundStyle(T9Theme.ink)
-                Text("Local copies only. Swipe a chat to clear it.")
-                    .font(T9Theme.font(14))
-                    .foregroundStyle(T9Theme.muted)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.bottom, 14)
-            .overlay(alignment: .bottom) {
-                Rectangle().fill(T9Theme.hair).frame(height: T9Theme.stroke)
-            }
-
-            HStack {
+                Spacer(minLength: 8)
                 if app.pushOnline {
-                    Text("LIVE")
-                        .font(T9Theme.font(10, .semibold))
-                        .tracking(1.4)
-                        .foregroundStyle(T9Theme.teal)
+                    StatusBadge(text: "Live", tone: T9Theme.teal)
                 }
-                Spacer()
-                PrimaryButton(title: "Fetch", tint: T9Theme.accent, busy: busy) {
-                    Task { await fetch() }
-                }
-                .frame(maxWidth: 160)
             }
-            .padding(.top, 18)
-            .padding(.bottom, 8)
+            Text("Local copies only. Swipe a chat to clear it.")
+                .font(T9Theme.font(14))
+                .foregroundStyle(T9Theme.muted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, T9Theme.pageInset)
+        .padding(.top, T9Theme.space1)
+        .padding(.bottom, T9Theme.space2)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(T9Theme.hair.opacity(0.35))
+                .frame(height: T9Theme.rule)
         }
     }
 
     private func chatRow(_ chat: ChatSummary) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(chat.username)
-                    .font(T9Theme.font(15, .semibold))
-                    .foregroundStyle(T9Theme.teal)
-                Spacer(minLength: 8)
-                Text("\(chat.count)")
-                    .font(T9Theme.font(11, .semibold))
-                    .foregroundStyle(T9Theme.muted)
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(chat.username)
+                        .font(T9Theme.font(15, .semibold))
+                        .foregroundStyle(T9Theme.teal)
+                    Spacer(minLength: 8)
+                    if chat.unreadCount > 0 {
+                        Text("\(chat.unreadCount)")
+                            .font(T9Theme.font(11, .bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 3)
+                            .background(T9Theme.accent)
+                    } else {
+                        Text("\(chat.count)")
+                            .font(T9Theme.font(12, .medium))
+                            .foregroundStyle(T9Theme.muted)
+                    }
+                }
+                Text(chat.latest.outbound ? "You: \(chat.latest.plaintext)" : chat.latest.plaintext)
+                    .font(T9Theme.font(14, chat.unreadCount > 0 ? .semibold : .regular))
+                    .foregroundStyle(T9Theme.ink)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
             }
-            Text(chat.latest.outbound ? "You: \(chat.latest.plaintext)" : chat.latest.plaintext)
-                .font(T9Theme.font(14))
-                .foregroundStyle(T9Theme.ink)
-                .lineLimit(2)
-                .multilineTextAlignment(.leading)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 2)
     }
 
     private func fetch() async {
         busy = true
         defer { busy = false }
-        await app.fetchInboxQuiet()
-        app.statusLine = "fetched"
+        let n = await app.fetchInboxQuiet()
+        app.statusLine = n > 0 ? (n == 1 ? "1 new message" : "\(n) new messages") : "fetched"
     }
 }

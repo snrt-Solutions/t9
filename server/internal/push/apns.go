@@ -93,7 +93,7 @@ func (a *APNs) Notify(deviceToken string) {
 	if a.prod {
 		host = "https://api.push.apple.com"
 	}
-	body := []byte(`{"aps":{"alert":{"title":"AeSMS","body":"New message"},"sound":"default"}}`)
+	body := []byte(`{"aps":{"alert":{"title":"AeSMS","body":"New message"},"sound":"default","badge":1,"content-available":1}}`)
 	req, err := http.NewRequest(http.MethodPost, host+"/3/device/"+deviceToken, bytes.NewReader(body))
 	if err != nil {
 		return
@@ -102,6 +102,7 @@ func (a *APNs) Notify(deviceToken string) {
 	req.Header.Set("apns-topic", a.bundle)
 	req.Header.Set("apns-push-type", "alert")
 	req.Header.Set("apns-priority", "10")
+	req.Header.Set("apns-collapse-id", "aesms-new-mail")
 	res, err := a.client.Do(req)
 	if err != nil {
 		log.Printf("apns send: %v", err)
