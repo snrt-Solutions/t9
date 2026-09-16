@@ -114,7 +114,7 @@ final class AppState: ObservableObject {
             let res = try await api.fetchMessages(base: serverURL, token: tok)
             let iso = ISO8601DateFormatter()
             for wire in res.messages {
-                guard let data = Data(base64Encoded: wire.ciphertext) else { continue }
+                guard let data = Data(base64URLOrStdEncoded: wire.ciphertext) else { continue }
                 let plain = (try? keys.open(ciphertext: data)) ?? "«undecryptable»"
                 let when = wire.created_at.flatMap { iso.date(from: $0) } ?? Date()
                 let local = LocalMessage(

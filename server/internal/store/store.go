@@ -910,11 +910,21 @@ func (s *Store) SealedBytes() ([]byte, error) {
 	return os.ReadFile(s.sealed)
 }
 
-// CiphertextB64 helper for API.
+// CiphertextB64 helper for API — raw URL-safe base64 (no padding) to shrink JSON.
 func CiphertextB64(b []byte) string {
-	return base64.StdEncoding.EncodeToString(b)
+	return base64.RawURLEncoding.EncodeToString(b)
 }
 
+// DecodeCiphertextB64 accepts std, raw-std, URL, and raw-URL base64.
 func DecodeCiphertextB64(s string) ([]byte, error) {
+	if b, err := base64.RawURLEncoding.DecodeString(s); err == nil {
+		return b, nil
+	}
+	if b, err := base64.URLEncoding.DecodeString(s); err == nil {
+		return b, nil
+	}
+	if b, err := base64.RawStdEncoding.DecodeString(s); err == nil {
+		return b, nil
+	}
 	return base64.StdEncoding.DecodeString(s)
 }

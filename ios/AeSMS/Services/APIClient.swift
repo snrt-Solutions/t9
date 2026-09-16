@@ -6,8 +6,22 @@ actor APIClient {
         var errorDescription: String? { message }
     }
 
+    /// Reject cleartext to non-loopback hosts — TLS required in transit.
+    nonisolated static func assertTransitSafe(base: String) throws {
+        let trimmed = base.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let url = URL(string: trimmed), let scheme = url.scheme?.lowercased() else {
+            throw APIError(message: "invalid server URL")
+        }
+        let host = (url.host ?? "").lowercased()
+        let loopback = host == "127.0.0.1" || host == "localhost" || host == "::1"
+        if scheme == "https" { return }
+        if scheme == "http" && loopback { return }
+        throw APIError(message: "HTTPS required (HTTP only allowed for localhost)")
+    }
+
     func getInfo(base: String) async throws -> ServerInfo {
-        try await get(base: base, path: "/v1/info")
+        try Self.assertTransitSafe(base: base)
+        return try await get(base: base, path: "/v1/info")
     }
 
     func deviceLogin(base: String, username: String, password: String, deviceID: String) async throws -> PendingLoginResponse {
@@ -93,6 +107,7 @@ actor APIClient {
     }
 
     private func get<T: Decodable>(base: String, path: String, token: String? = nil) async throws -> T {
+        try Self.assertTransitSafe(base: base)
         var req = URLRequest(url: url(base, path))
         req.httpMethod = "GET"
         if let token { req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
@@ -100,11 +115,12 @@ actor APIClient {
     }
 
     private func post<T: Decodable>(base: String, path: String, body: [String: Any], token: String? = nil) async throws -> T {
+        try Self.assertTransitSafe(base: base)
         var req = URLRequest(url: url(base, path))
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         if let token { req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
-        req.httpBody = try JSONSerialization.data(withJSONObject: body)
+        req.httpBody = try JSONSerialization.data(withJSONObject: body, options: [])
         return try await decode(req)
     }
 

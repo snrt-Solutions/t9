@@ -15,6 +15,7 @@ import (
 
 	"github.com/aesms-io/aesms/server/internal/auth"
 	"github.com/aesms-io/aesms/server/internal/captcha"
+	"github.com/aesms-io/aesms/server/internal/compressmw"
 	"github.com/aesms-io/aesms/server/internal/config"
 	"github.com/aesms-io/aesms/server/internal/crypto"
 	"github.com/aesms-io/aesms/server/internal/push"
@@ -64,6 +65,7 @@ func (s *Server) Handler() http.Handler {
 	if s.Limiter != nil {
 		h = s.Limiter.Middleware(h)
 	}
+	h = compressmw.Middleware(h)
 	return s.noSessionCookies(h)
 }
 
@@ -167,7 +169,9 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(v)
+	enc := json.NewEncoder(w)
+	enc.SetEscapeHTML(false)
+	_ = enc.Encode(v)
 }
 
 func writeErr(w http.ResponseWriter, status int, msg string) {

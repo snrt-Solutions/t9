@@ -7,7 +7,7 @@
 - Device session token (hash at rest; plaintext only in app / one-shot poll)
 - Message ciphertext (blind mailbox)
 - Client identity private keys (Keychain + optional passphrase backup)
-- Local contact graph (device only)
+- Local contact graph + kept message history (device Keychain-wrapped AES-GCM files)
 
 ## Adversaries
 
@@ -18,6 +18,7 @@
 | Password thief | Bind attacker device | Web TOTP **release gate**; password alone leaves login `pending` |
 | Stolen browser cookie | Hijack account | **No web account sessions / cookies** |
 | Disk theft (offline host) | Dump DB | `AESMS_DB_KEY` sealed SQLite + column crypto |
+| Disk theft (lost phone, offline) | Read chats/contacts | Keychain store key + AES-GCM sealed local files; excluded from iCloud backup |
 | Compromised unsigned client | Forge device bind | MVP relies on signed distribution; App Attest later |
 | Curious CDN / Tunnel provider | Observe traffic | Still ciphertext; metadata leakage possible |
 | Signup bot / scripted create | Exhaust usernames, burn CPU on Argon2 | Cloudflare Turnstile on `POST /v1/accounts`; unknown-JSON rejection; per-source rate limits |

@@ -23,6 +23,7 @@ actor EventStream {
     }
 
     private func listen(base: String, token: String, onMessage: @escaping @Sendable () -> Void) async throws {
+        try APIClient.assertTransitSafe(base: base)
         let trimmed = base.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         guard let url = URL(string: trimmed + "/v1/events") else { return }
         var req = URLRequest(url: url)

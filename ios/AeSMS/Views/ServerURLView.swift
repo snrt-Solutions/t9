@@ -56,8 +56,11 @@ struct ServerURLView: View {
     private func continueTap() async {
         busy = true
         defer { busy = false }
+        let trimmed = app.serverURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        app.serverURL = trimmed
         do {
-            let info = try await app.api.getInfo(base: app.serverURL)
+            try APIClient.assertTransitSafe(base: trimmed)
+            let info = try await app.api.getInfo(base: trimmed)
             if info.setup_needed == true {
                 app.statusLine = "Server is in setup mode. Finish /setup.html on the host first."
                 return

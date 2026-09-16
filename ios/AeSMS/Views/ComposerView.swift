@@ -124,7 +124,7 @@ struct ComposerView: View {
                 base: app.serverURL,
                 token: tok,
                 to: contact.username,
-                ciphertextB64: sealed.base64EncodedString(),
+                ciphertextB64: sealed.base64URLEncodedString(),
                 graphemes: graphemes,
                 pubkey: app.keys.publicKeyB64()
             )
