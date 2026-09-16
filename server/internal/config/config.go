@@ -19,6 +19,7 @@ type Config struct {
 	PendingTTL  time.Duration
 	MessageTTL  time.Duration
 	EnrollTTL   time.Duration
+	PairOfferTTL time.Duration
 	PurgeEvery  time.Duration
 	TokenBytes  int
 	Fingerprint string
@@ -65,14 +66,15 @@ func Load() (*Config, error) {
 	base = strings.TrimRight(base, "/")
 
 	cfg := &Config{
-		Listen:      listen,
-		DataDir:     data,
-		BaseURL:     base,
-		PendingTTL:  15 * time.Minute,
-		MessageTTL:  24 * time.Hour,
-		EnrollTTL:   15 * time.Minute,
-		PurgeEvery:  time.Minute,
-		TokenBytes:  32,
+		Listen:       listen,
+		DataDir:      data,
+		BaseURL:      base,
+		PendingTTL:   15 * time.Minute,
+		MessageTTL:   24 * time.Hour,
+		EnrollTTL:    15 * time.Minute,
+		PairOfferTTL: 60 * time.Second,
+		PurgeEvery:   time.Minute,
+		TokenBytes:   32,
 		APNsKeyID:   os.Getenv("AESMS_APNS_KEY_ID"),
 		APNsTeamID:  os.Getenv("AESMS_APNS_TEAM_ID"),
 		APNsKeyPath: os.Getenv("AESMS_APNS_KEY_PATH"),

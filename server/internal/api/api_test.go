@@ -43,6 +43,7 @@ func testEnv(t *testing.T) (*api.Server, *store.Store, *config.Config) {
 		PendingTTL:        15 * time.Minute,
 		MessageTTL:        24 * time.Hour,
 		EnrollTTL:         15 * time.Minute,
+		PairOfferTTL:      60 * time.Second,
 		PurgeEvery:        time.Minute,
 		TokenBytes:        32,
 		RateLimitDisabled: true,
@@ -646,3 +647,111 @@ func TestSetupAvailableWhenNeeded(t *testing.T) {
 		t.Fatalf("GET /v1/setup when needed: %d %#v", code, out)
 	}
 }
+
+func TestPairHandshakeRotateClaimPoll(t *testing.T) {
+	srv, _, _ := testEnv(t)
+	h := srv.Handler()
+
+	secA := createActiveAccount(t, h, "alice_pair", "password1234")
+	secB := createActiveAccount(t, h, "bob_pair", "password1234")
+	tokA := deviceTokenFor(t, h, "alice_pair", "password1234", secA)
+	tokB := deviceTokenFor(t, h, "bob_pair", "password1234", secB)
+	hdrA := map[string]string{"Authorization": "Bearer " + tokA}
+	hdrB := map[string]string{"Authorization": "Bearer " + tokB}
+
+	code, _, out := doJSON(t, h, "POST", "/v1/pair/offer", map[string]any{
+		"pubkey": "pk-alice-1",
+	}, hdrA)
+	if code != 201 {
+		t.Fatalf("offer1: %d %#v", code, out)
+	}
+	oldCode, _ := out["code"].(string)
+	if oldCode == "" {
+		t.Fatal("expected code")
+	}
+
+	code, _, out = doJSON(t, h, "POST", "/v1/pair/offer", map[string]any{
+		"pubkey": "pk-alice-2",
+	}, hdrA)
+	if code != 201 {
+		t.Fatalf("offer2: %d %#v", code, out)
+	}
+	freshCode, _ := out["code"].(string)
+	if freshCode == "" || freshCode == oldCode {
+		t.Fatalf("expected rotated code, got %#v", out)
+	}
+
+	code, _, out = doJSON(t, h, "POST", "/v1/pair/claim", map[string]any{
+		"code": oldCode, "pubkey": "pk-bob",
+	}, hdrB)
+	if code != 404 {
+		t.Fatalf("old code should be spent by rotation: %d %#v", code, out)
+	}
+
+	code, _, out = doJSON(t, h, "POST", "/v1/pair/claim", map[string]any{
+		"code": freshCode, "pubkey": "pk-bob",
+	}, hdrA)
+	if code != 400 {
+		t.Fatalf("self claim: %d %#v", code, out)
+	}
+
+	code, _, out = doJSON(t, h, "POST", "/v1/pair/claim", map[string]any{
+		"code": freshCode, "pubkey": "pk-bob",
+	}, hdrB)
+	if code != 200 {
+		t.Fatalf("claim: %d %#v", code, out)
+	}
+	peer, _ := out["peer"].(map[string]any)
+	if peer["username"] != "alice_pair" || peer["pubkey"] != "pk-alice-2" {
+		t.Fatalf("claimer peer: %#v", out)
+	}
+
+	code, _, out = doJSON(t, h, "POST", "/v1/pair/claim", map[string]any{
+		"code": freshCode, "pubkey": "pk-bob",
+	}, hdrB)
+	if code != 404 && code != 409 {
+		t.Fatalf("second claim: %d %#v", code, out)
+	}
+
+	code, _, out = doJSON(t, h, "GET", "/v1/pair/offer", nil, hdrA)
+	if code != 200 || out["status"] != "claimed" {
+		t.Fatalf("poll claimed: %d %#v", code, out)
+	}
+	peer, _ = out["peer"].(map[string]any)
+	if peer["username"] != "bob_pair" || peer["pubkey"] != "pk-bob" {
+		t.Fatalf("offerer peer: %#v", out)
+	}
+
+	code, _, out = doJSON(t, h, "GET", "/v1/pair/offer", nil, hdrA)
+	if code != 200 || out["status"] != "waiting" {
+		t.Fatalf("poll once: %d %#v", code, out)
+	}
+}
+
+func TestPairOfferExpiredUseless(t *testing.T) {
+	srv, _, cfg := testEnv(t)
+	cfg.PairOfferTTL = 20 * time.Millisecond
+	h := srv.Handler()
+
+	secA := createActiveAccount(t, h, "exp_a", "password1234")
+	secB := createActiveAccount(t, h, "exp_b", "password1234")
+	tokA := deviceTokenFor(t, h, "exp_a", "password1234", secA)
+	tokB := deviceTokenFor(t, h, "exp_b", "password1234", secB)
+
+	code, _, out := doJSON(t, h, "POST", "/v1/pair/offer", map[string]any{
+		"pubkey": "pk-a",
+	}, map[string]string{"Authorization": "Bearer " + tokA})
+	if code != 201 {
+		t.Fatalf("offer: %d %#v", code, out)
+	}
+	pairCode, _ := out["code"].(string)
+	time.Sleep(40 * time.Millisecond)
+
+	code, _, out = doJSON(t, h, "POST", "/v1/pair/claim", map[string]any{
+		"code": pairCode, "pubkey": "pk-b",
+	}, map[string]string{"Authorization": "Bearer " + tokB})
+	if code != 410 && code != 404 {
+		t.Fatalf("expired claim: %d %#v", code, out)
+	}
+}
+

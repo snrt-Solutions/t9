@@ -110,6 +110,9 @@ func (s *Server) routes() {
 	s.Mux.HandleFunc("GET /v1/events", s.requireReady(s.handleEvents))
 	s.Mux.HandleFunc("POST /v1/messages", s.requireReady(s.handlePostMessage))
 	s.Mux.HandleFunc("GET /v1/messages", s.requireReady(s.handleGetMessages))
+	s.Mux.HandleFunc("POST /v1/pair/offer", s.requireReady(s.handlePairOfferCreate))
+	s.Mux.HandleFunc("GET /v1/pair/offer", s.requireReady(s.handlePairOfferPoll))
+	s.Mux.HandleFunc("POST /v1/pair/claim", s.requireReady(s.handlePairClaim))
 	if s.Static != nil {
 		s.Mux.HandleFunc("GET /{$}", s.handleRoot)
 		s.Mux.HandleFunc("GET /setup.html", s.handleSetupHTML)
@@ -820,3 +823,122 @@ func (s *Server) handleGetMessages(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"messages": out})
 }
+
+type pairOfferReq struct {
+	Pubkey string `json:"pubkey"`
+}
+
+type pairClaimReq struct {
+	Code   string `json:"code"`
+	Pubkey string `json:"pubkey"`
+}
+
+func (s *Server) handlePairOfferCreate(w http.ResponseWriter, r *http.Request) {
+	_, acc, ok := s.requireDevice(w, r)
+	if !ok {
+		return
+	}
+	var req pairOfferReq
+	if _, err := readJSON(r, &req); err != nil {
+		readJSONErr(w, err)
+		return
+	}
+	if strings.TrimSpace(req.Pubkey) == "" {
+		writeErr(w, http.StatusBadRequest, "pubkey required")
+		return
+	}
+	if err := auth.ValidatePubkey(req.Pubkey); err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	plain, err := crypto.RandomToken(24)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "token mint failed")
+		return
+	}
+	ttl := s.Cfg.PairOfferTTL
+	if ttl <= 0 {
+		ttl = 60 * time.Second
+	}
+	offer, err := s.Store.UpsertPairOffer(acc.ID, acc.Username, req.Pubkey, crypto.HashToken(plain), ttl)
+	if err != nil {
+		if errors.Is(err, store.ErrConflict) {
+			writeErr(w, http.StatusConflict, "handshake pending - poll offer")
+			return
+		}
+		writeErr(w, http.StatusInternalServerError, "offer failed")
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{
+		"code":       plain,
+		"expires_at": offer.ExpiresAt.Format(time.RFC3339),
+	})
+}
+
+func (s *Server) handlePairOfferPoll(w http.ResponseWriter, r *http.Request) {
+	_, acc, ok := s.requireDevice(w, r)
+	if !ok {
+		return
+	}
+	status, peer, err := s.Store.PollPairOffer(acc.ID)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "poll failed")
+		return
+	}
+	out := map[string]any{"status": status}
+	if peer != nil {
+		out["peer"] = map[string]any{
+			"username": peer.Username,
+			"pubkey":   peer.Pubkey,
+		}
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+func (s *Server) handlePairClaim(w http.ResponseWriter, r *http.Request) {
+	_, acc, ok := s.requireDevice(w, r)
+	if !ok {
+		return
+	}
+	var req pairClaimReq
+	if _, err := readJSON(r, &req); err != nil {
+		readJSONErr(w, err)
+		return
+	}
+	code := strings.TrimSpace(req.Code)
+	if code == "" || len(code) < 8 {
+		writeErr(w, http.StatusBadRequest, "invalid code")
+		return
+	}
+	if strings.TrimSpace(req.Pubkey) == "" {
+		writeErr(w, http.StatusBadRequest, "pubkey required")
+		return
+	}
+	if err := auth.ValidatePubkey(req.Pubkey); err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	peer, err := s.Store.ClaimPairOffer(code, acc.ID, acc.Username, req.Pubkey)
+	if err != nil {
+		switch {
+		case errors.Is(err, store.ErrNotFound):
+			writeErr(w, http.StatusNotFound, "unknown or spent code")
+		case errors.Is(err, store.ErrPairExpired):
+			writeErr(w, http.StatusGone, "pair offer expired")
+		case errors.Is(err, store.ErrConflict):
+			writeErr(w, http.StatusConflict, "code already claimed")
+		case errors.Is(err, store.ErrPairSelf):
+			writeErr(w, http.StatusBadRequest, "cannot claim own pair offer")
+		default:
+			writeErr(w, http.StatusInternalServerError, "claim failed")
+		}
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"peer": map[string]any{
+			"username": peer.Username,
+			"pubkey":   peer.Pubkey,
+		},
+	})
+}
+

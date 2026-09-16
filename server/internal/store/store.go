@@ -33,6 +33,8 @@ var (
 	ErrDeviceBound     = errors.New("device already bound")
 	ErrPendingExpired = errors.New("pending login expired")
 	ErrDenied         = errors.New("denied")
+	ErrPairExpired    = errors.New("pair offer expired")
+	ErrPairSelf       = errors.New("cannot claim own pair offer")
 )
 
 type Store struct {
@@ -86,6 +88,26 @@ type Message struct {
 	Ciphertext     []byte
 	CreatedAt      time.Time
 	ExpiresAt      time.Time
+}
+
+// PairOffer is an ephemeral proximity handshake (hashed code at rest).
+type PairOffer struct {
+	ID               string
+	OffererAccountID string
+	OffererUsername  string
+	OffererPubkey    string
+	CodeHash         string
+	ExpiresAt        time.Time
+	ClaimerAccountID string
+	ClaimerUsername  string
+	ClaimerPubkey    string
+	CreatedAt        time.Time
+}
+
+// PairPeer is the intro returned to the other side of a handshake.
+type PairPeer struct {
+	Username string
+	Pubkey   string
 }
 
 // Open decrypts sealed DB (or creates new), opens SQLite, migrates.
@@ -207,9 +229,23 @@ CREATE TABLE IF NOT EXISTS messages (
   created_at TEXT NOT NULL,
   expires_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS pair_offers (
+  id TEXT PRIMARY KEY,
+  offerer_account_id TEXT NOT NULL REFERENCES accounts(id),
+  offerer_username TEXT NOT NULL,
+  offerer_pubkey TEXT NOT NULL,
+  code_hash TEXT NOT NULL UNIQUE,
+  expires_at TEXT NOT NULL,
+  claimer_account_id TEXT,
+  claimer_username TEXT,
+  claimer_pubkey TEXT,
+  created_at TEXT NOT NULL
+);
 CREATE INDEX IF NOT EXISTS idx_messages_recipient ON messages(recipient_account_id);
 CREATE INDEX IF NOT EXISTS idx_messages_expires ON messages(expires_at);
 CREATE INDEX IF NOT EXISTS idx_pending_expires ON pending_device_logins(expires_at);
+CREATE INDEX IF NOT EXISTS idx_pair_offers_offerer ON pair_offers(offerer_account_id);
+CREATE INDEX IF NOT EXISTS idx_pair_offers_expires ON pair_offers(expires_at);
 `)
 	if err != nil {
 		return err
@@ -363,6 +399,7 @@ func (s *Store) deleteAccountRow(id string) error {
 	_, _ = s.db.Exec(`DELETE FROM messages WHERE recipient_account_id=?`, id)
 	_, _ = s.db.Exec(`DELETE FROM pending_device_logins WHERE account_id=?`, id)
 	_, _ = s.db.Exec(`DELETE FROM device_sessions WHERE account_id=?`, id)
+	_, _ = s.db.Exec(`DELETE FROM pair_offers WHERE offerer_account_id=? OR claimer_account_id=?`, id, id)
 	_, err := s.db.Exec(`DELETE FROM accounts WHERE id=? AND active=0`, id)
 	if err != nil {
 		return err
@@ -715,6 +752,122 @@ func (s *Store) FetchAndDelete(recipientID string) ([]Message, error) {
 	return out, nil
 }
 
+// UpsertPairOffer replaces any unclaimed offer for this account. Refuses if a claimed
+// result is waiting for the offerer to poll (so rotation cannot drop a handshake).
+func (s *Store) UpsertPairOffer(offererAccountID, offererUsername, offererPubkey, codeHash string, ttl time.Duration) (*PairOffer, error) {
+	var claimedID string
+	err := s.db.QueryRow(
+		`SELECT id FROM pair_offers WHERE offerer_account_id=? AND claimer_account_id IS NOT NULL AND claimer_account_id != ''`,
+		offererAccountID,
+	).Scan(&claimedID)
+	if err == nil {
+		return nil, ErrConflict
+	} else if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, err
+	}
+
+	_, _ = s.db.Exec(`DELETE FROM pair_offers WHERE offerer_account_id=?`, offererAccountID)
+
+	t := nowUTC()
+	exp := t.Add(ttl)
+	id := uuid.NewString()
+	_, err = s.db.Exec(
+		`INSERT INTO pair_offers(id,offerer_account_id,offerer_username,offerer_pubkey,code_hash,expires_at,claimer_account_id,claimer_username,claimer_pubkey,created_at)
+		 VALUES(?,?,?,?,?,?,NULL,'','',?)`,
+		id, offererAccountID, offererUsername, offererPubkey, codeHash, fmtTime(exp), fmtTime(t),
+	)
+	if err != nil {
+		return nil, err
+	}
+	_ = s.SealNow()
+	return &PairOffer{
+		ID:               id,
+		OffererAccountID: offererAccountID,
+		OffererUsername:  offererUsername,
+		OffererPubkey:    offererPubkey,
+		CodeHash:         codeHash,
+		ExpiresAt:        exp,
+		CreatedAt:        t,
+	}, nil
+}
+
+// ClaimPairOffer consumes a plaintext code (hashed for lookup) and attaches the claimer.
+// Returns the offerer's intro. The row stays until the offerer polls.
+func (s *Store) ClaimPairOffer(code, claimerAccountID, claimerUsername, claimerPubkey string) (*PairPeer, error) {
+	hash := crypto.HashToken(code)
+	row := s.db.QueryRow(
+		`SELECT id,offerer_account_id,offerer_username,offerer_pubkey,expires_at,claimer_account_id
+		 FROM pair_offers WHERE code_hash=?`,
+		hash,
+	)
+	var id, offererAcc, offererUser, offererPub, expStr string
+	var claimerAcc sql.NullString
+	if err := row.Scan(&id, &offererAcc, &offererUser, &offererPub, &expStr, &claimerAcc); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	exp, _ := parseTime(expStr)
+	if nowUTC().After(exp) {
+		_, _ = s.db.Exec(`DELETE FROM pair_offers WHERE id=?`, id)
+		_ = s.SealNow()
+		return nil, ErrPairExpired
+	}
+	if claimerAcc.Valid && claimerAcc.String != "" {
+		return nil, ErrConflict
+	}
+	if offererAcc == claimerAccountID {
+		return nil, ErrPairSelf
+	}
+	_, err := s.db.Exec(
+		`UPDATE pair_offers SET claimer_account_id=?, claimer_username=?, claimer_pubkey=? WHERE id=? AND (claimer_account_id IS NULL OR claimer_account_id='')`,
+		claimerAccountID, claimerUsername, claimerPubkey, id,
+	)
+	if err != nil {
+		return nil, err
+	}
+	_ = s.SealNow()
+	return &PairPeer{Username: offererUser, Pubkey: offererPub}, nil
+}
+
+// PollPairOffer returns a claimed peer once, then deletes the offer. Waiting otherwise.
+func (s *Store) PollPairOffer(offererAccountID string) (status string, peer *PairPeer, err error) {
+	row := s.db.QueryRow(
+		`SELECT id,expires_at,claimer_account_id,claimer_username,claimer_pubkey
+		 FROM pair_offers WHERE offerer_account_id=? ORDER BY created_at DESC LIMIT 1`,
+		offererAccountID,
+	)
+	var id, expStr string
+	var claimerAcc, claimerUser, claimerPub sql.NullString
+	if err := row.Scan(&id, &expStr, &claimerAcc, &claimerUser, &claimerPub); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "waiting", nil, nil
+		}
+		return "", nil, err
+	}
+	exp, _ := parseTime(expStr)
+	claimed := claimerAcc.Valid && claimerAcc.String != ""
+	if !claimed {
+		if nowUTC().After(exp) {
+			_, _ = s.db.Exec(`DELETE FROM pair_offers WHERE id=?`, id)
+			_ = s.SealNow()
+			return "expired", nil, nil
+		}
+		return "waiting", nil, nil
+	}
+	peer = &PairPeer{
+		Username: claimerUser.String,
+		Pubkey:   claimerPub.String,
+	}
+	_, err = s.db.Exec(`DELETE FROM pair_offers WHERE id=?`, id)
+	if err != nil {
+		return "", nil, err
+	}
+	_ = s.SealNow()
+	return "claimed", peer, nil
+}
+
 func (s *Store) PurgeExpired(now time.Time) (int64, error) {
 	res, err := s.db.Exec(`DELETE FROM messages WHERE expires_at <= ?`, fmtTime(now))
 	if err != nil {
@@ -722,6 +875,11 @@ func (s *Store) PurgeExpired(now time.Time) (int64, error) {
 	}
 	n, _ := res.RowsAffected()
 	_, _ = s.db.Exec(`UPDATE pending_device_logins SET status='denied' WHERE status='pending' AND expires_at <= ?`, fmtTime(now))
+	if res2, err := s.db.Exec(`DELETE FROM pair_offers WHERE expires_at <= ? AND claimer_account_id IS NULL`, fmtTime(now)); err == nil {
+		if n2, _ := res2.RowsAffected(); n2 > 0 {
+			n += n2
+		}
+	}
 	// Unfinished TOTP enrollments release the username.
 	rows, err := s.db.Query(`SELECT id FROM accounts WHERE active=0 AND (enroll_expires_at='' OR enroll_expires_at <= ?)`, fmtTime(now))
 	if err != nil {
