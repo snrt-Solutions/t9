@@ -9,57 +9,63 @@ struct SettingsView: View {
     var body: some View {
         ScrollView {
             ScreenChrome(title: "Settings", subtitle: "Local keys and device session only.") {
-                VStack(alignment: .leading, spacing: 20) {
-                    VStack(alignment: .leading, spacing: 10) {
-                        meta("Server", app.serverURL)
-                        RowDivider()
-                        meta("User", app.username)
-                        RowDivider()
-                        meta("Fingerprint", app.fingerprint)
-                        RowDivider()
-                        meta("Pubkey", String(app.keys.publicKeyB64().prefix(24)) + "…")
-                        RowDivider()
-                        meta("Push", app.pushOnline ? "SSE online" : "offline")
+                VStack(alignment: .leading, spacing: T9Theme.space3) {
+                    SurfacePanel {
+                        VStack(alignment: .leading, spacing: 0) {
+                            meta("Server", app.serverURL)
+                            RowDivider().padding(.vertical, 10)
+                            meta("User", app.username)
+                            RowDivider().padding(.vertical, 10)
+                            meta("Fingerprint", app.fingerprint)
+                            RowDivider().padding(.vertical, 10)
+                            meta("Pubkey", String(app.keys.publicKeyB64().prefix(24)) + "…")
+                            RowDivider().padding(.vertical, 10)
+                            meta("Push", app.pushOnline ? "SSE online" : "offline")
+                        }
                     }
 
                     VStack(alignment: .leading, spacing: 12) {
                         FieldLabel(text: "Encrypted backup")
                         SecureField("passphrase", text: $passphrase)
                             .t9Field()
-                        PrimaryButton(title: "Export backup", tint: T9Theme.accent) { export() }
-                        PrimaryButton(title: "Restore from paste", tint: T9Theme.teal) { restore() }
+                        SecondaryButton(title: "Export backup") { export() }
+                        SecondaryButton(title: "Restore from paste") { restore() }
                         TextEditor(text: $backupB64)
                             .font(T9Theme.font(11))
-                            .frame(minHeight: 80)
-                            .padding(8)
+                            .frame(minHeight: 88)
+                            .padding(12)
                             .scrollContentBackground(.hidden)
                             .background(T9Theme.surface)
-                            .overlay(Rectangle().stroke(T9Theme.hair, lineWidth: T9Theme.stroke))
+                            .overlay(Rectangle().stroke(T9Theme.hair.opacity(0.55), lineWidth: T9Theme.stroke))
                         Text("Restoring keys still requires a fresh web device release.")
                             .font(T9Theme.font(12))
                             .foregroundStyle(T9Theme.muted)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
 
                     if !status.isEmpty {
                         Text(status)
-                            .font(T9Theme.font(12))
+                            .font(T9Theme.font(13))
                             .foregroundStyle(T9Theme.muted)
                     }
 
-                    PrimaryButton(title: "Lock now", tint: T9Theme.ink) {
-                        app.lockMailbox()
-                    }
-
-                    PrimaryButton(title: "Revoke device token", tint: T9Theme.warn) {
-                        Task { await revoke() }
+                    VStack(alignment: .leading, spacing: 12) {
+                        PrimaryButton(title: "Lock now", tint: T9Theme.ink) {
+                            app.lockMailbox()
+                        }
+                        PrimaryButton(title: "Revoke device token", tint: T9Theme.warn) {
+                            Task { await revoke() }
+                        }
                     }
                 }
             }
+            .padding(.bottom, T9Theme.space3)
         }
+        .background(T9Theme.bg.ignoresSafeArea())
     }
 
     private func meta(_ k: String, _ v: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 4) {
             Text(k.uppercased())
                 .font(T9Theme.font(10, .semibold))
                 .tracking(1.2)
@@ -67,8 +73,8 @@ struct SettingsView: View {
             Text(v.isEmpty ? "-" : v)
                 .font(T9Theme.font(13))
                 .textSelection(.enabled)
+                .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(.vertical, 4)
     }
 
     private func export() {

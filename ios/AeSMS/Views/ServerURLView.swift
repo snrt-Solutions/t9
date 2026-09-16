@@ -6,19 +6,24 @@ struct ServerURLView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: T9Theme.space3) {
                 brand
+                    .padding(.horizontal, T9Theme.pageInset)
+                    .padding(.top, T9Theme.space2)
+
                 ScreenChrome(
                     title: "Point at your host",
                     subtitle: "Enter the public base URL from Docker setup or your Tunnel hostname."
                 ) {
-                    VStack(alignment: .leading, spacing: 14) {
-                        FieldLabel(text: "Server URL")
-                        TextField("https://app.aesms.io", text: $app.serverURL)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                            .keyboardType(.URL)
-                            .t9Field()
+                    VStack(alignment: .leading, spacing: T9Theme.space2) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            FieldLabel(text: "Server URL")
+                            TextField("https://app.aesms.io", text: $app.serverURL)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                                .keyboardType(.URL)
+                                .t9Field()
+                        }
 
                         PrimaryButton(title: "Continue", tint: T9Theme.accent, busy: busy) {
                             Task { await continueTap() }
@@ -26,21 +31,24 @@ struct ServerURLView: View {
 
                         if !app.statusLine.isEmpty {
                             Text(app.statusLine)
-                                .font(T9Theme.font(12))
+                                .font(T9Theme.font(13))
                                 .foregroundStyle(T9Theme.muted)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                     }
                 }
             }
+            .padding(.bottom, T9Theme.space3)
         }
     }
 
     private var brand: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 6) {
             Text("AeSMS")
-                .font(T9Theme.font(28, .bold))
+                .font(T9Theme.font(32, .bold))
+                .foregroundStyle(T9Theme.ink)
             Text("fetch-once messaging")
-                .font(T9Theme.font(13, .medium))
+                .font(T9Theme.font(14, .medium))
                 .foregroundStyle(T9Theme.muted)
         }
     }

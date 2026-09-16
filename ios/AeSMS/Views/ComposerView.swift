@@ -10,34 +10,70 @@ struct ComposerView: View {
     private var graphemes: Int { Grapheme.count(bodyText) }
     private var over: Bool { graphemes > 160 }
     private var canSend: Bool { !over && !bodyText.isEmpty && !to.isEmpty && !sending }
+    private var sortedContacts: [Contact] {
+        app.contacts.sorted { $0.username.localizedCaseInsensitiveCompare($1.username) == .orderedAscending }
+    }
 
     var body: some View {
         ScrollView {
             ScreenChrome(title: "Compose", subtitle: "160 grapheme blocks. Sealed to a QR contact.") {
-                VStack(alignment: .leading, spacing: 14) {
-                    FieldLabel(text: "To")
-                    TextField("contact username", text: $to)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .disabled(sending)
-                        .t9Field()
+                VStack(alignment: .leading, spacing: T9Theme.space2) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        FieldLabel(text: "To")
+                        if sortedContacts.isEmpty {
+                            Text("scan their QR first - no server address book")
+                                .font(T9Theme.font(14))
+                                .foregroundStyle(T9Theme.muted)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 14)
+                                .frame(minHeight: 48)
+                                .background(T9Theme.surface)
+                                .overlay(Rectangle().stroke(T9Theme.hair.opacity(0.55), lineWidth: T9Theme.stroke))
+                        } else {
+                            Menu {
+                                ForEach(sortedContacts) { contact in
+                                    Button(contact.username) {
+                                        to = contact.username
+                                    }
+                                }
+                            } label: {
+                                HStack(spacing: 12) {
+                                    Text(to.isEmpty ? "Choose contact" : to)
+                                        .font(T9Theme.font(15, .medium))
+                                        .foregroundStyle(to.isEmpty ? T9Theme.muted : T9Theme.ink)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                    Image(systemName: "chevron.down")
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundStyle(T9Theme.muted)
+                                }
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 14)
+                                .frame(minHeight: 48)
+                                .background(T9Theme.surface)
+                                .overlay(Rectangle().stroke(T9Theme.hair.opacity(0.55), lineWidth: T9Theme.stroke))
+                            }
+                            .disabled(sending)
+                            .accessibilityLabel("To")
+                            .accessibilityValue(to.isEmpty ? "No contact selected" : to)
+                        }
+                    }
 
-                    FieldLabel(text: "Message")
-                    TextEditor(text: $bodyText)
-                        .font(T9Theme.font(16))
-                        .frame(minHeight: 140)
-                        .padding(8)
-                        .scrollContentBackground(.hidden)
-                        .background(T9Theme.surface)
-                        .overlay(Rectangle().stroke(T9Theme.hair, lineWidth: T9Theme.stroke))
-                        .disabled(sending)
-                        .opacity(sending ? 0.7 : 1)
+                    VStack(alignment: .leading, spacing: 8) {
+                        FieldLabel(text: "Message")
+                        TextEditor(text: $bodyText)
+                            .font(T9Theme.font(16))
+                            .frame(minHeight: 160)
+                            .padding(14)
+                            .scrollContentBackground(.hidden)
+                            .background(T9Theme.surface)
+                            .overlay(Rectangle().stroke(T9Theme.hair.opacity(0.55), lineWidth: T9Theme.stroke))
+                            .disabled(sending)
+                            .opacity(sending ? 0.7 : 1)
 
-                    HStack {
                         Text("\(graphemes)/160")
-                            .font(T9Theme.font(13, .semibold))
-                            .foregroundStyle(over ? T9Theme.warn : T9Theme.teal)
-                        Spacer()
+                            .font(T9Theme.font(13, .medium))
+                            .foregroundStyle(over ? T9Theme.warn : T9Theme.muted)
                     }
 
                     PrimaryButton(
@@ -52,11 +88,20 @@ struct ComposerView: View {
 
                     if !status.isEmpty {
                         Text(status)
-                            .font(T9Theme.font(12))
+                            .font(T9Theme.font(13))
                             .foregroundStyle(sending ? T9Theme.teal : T9Theme.muted)
                     }
                 }
             }
+            .padding(.bottom, T9Theme.space3)
+        }
+        .background(T9Theme.bg.ignoresSafeArea())
+        .onAppear {
+            if !to.isEmpty,
+               !app.contacts.contains(where: { $0.username.caseInsensitiveCompare(to) == .orderedSame }) {
+                to = ""
+            }
+            Task { await app.fetchInboxQuiet() }
         }
     }
 
@@ -70,13 +115,15 @@ struct ComposerView: View {
         sending = true
         status = "Sending…"
         defer { sending = false }
+        // Pull mail first so badges/inbox stay current and fetch-once stays honest.
+        _ = await app.fetchInboxQuiet()
         do {
             let plain = bodyText
             let sealed = try app.keys.seal(plaintext: plain, toRecipientPubB64: contact.pubkey)
             let id = try await app.api.postMessage(
                 base: app.serverURL,
                 token: tok,
-                to: to,
+                to: contact.username,
                 ciphertextB64: sealed.base64EncodedString(),
                 graphemes: graphemes,
                 pubkey: app.keys.publicKeyB64()

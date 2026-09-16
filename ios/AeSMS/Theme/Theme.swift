@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// Cascadia boxy system: sharp corners, hairline structure, no nested fake frames.
+/// Cascadia system: sharp corners, purposeful structure, spacious rhythm.
+/// Borders mark interactive surfaces or true content groups — never decoration.
 enum T9Theme {
     static let bg = Color(red: 0.925, green: 0.925, blue: 0.925)
     static let surface = Color.white
@@ -11,7 +12,18 @@ enum T9Theme {
     static let warn = Color(red: 0.769, green: 0.361, blue: 0.102)
     static let hair = Color.black
     static let ease = Animation.timingCurve(0.32, 0.72, 0, 1, duration: 0.45)
-    static let stroke: CGFloat = 2
+
+    /// Structural outline for inputs and panels (1pt — readable, not heavy).
+    static let stroke: CGFloat = 1
+    /// Stronger rule only when separating major page regions.
+    static let rule: CGFloat = 1.5
+
+    // 8pt spacing scale
+    static let space1: CGFloat = 8
+    static let space2: CGFloat = 16
+    static let space3: CGFloat = 24
+    static let space4: CGFloat = 32
+    static let pageInset: CGFloat = 20
 
     static func font(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
         .custom("Cascadia Code", size: size).weight(weight)
@@ -24,6 +36,7 @@ struct T9Background: View {
     }
 }
 
+/// Page title + optional subtitle. Soft bottom rule separates chrome from content.
 struct ScreenChrome<Content: View>: View {
     let title: String
     var subtitle: String? = nil
@@ -31,26 +44,30 @@ struct ScreenChrome<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text(title)
-                    .font(T9Theme.font(28, .bold))
+                    .font(T9Theme.font(26, .bold))
                     .foregroundStyle(T9Theme.ink)
                 if let subtitle {
                     Text(subtitle)
                         .font(T9Theme.font(14))
                         .foregroundStyle(T9Theme.muted)
                         .fixedSize(horizontal: false, vertical: true)
+                        .lineSpacing(2)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.bottom, 14)
+            .padding(.bottom, T9Theme.space2)
             .overlay(alignment: .bottom) {
-                Rectangle().fill(T9Theme.hair).frame(height: T9Theme.stroke)
+                Rectangle()
+                    .fill(T9Theme.hair.opacity(0.35))
+                    .frame(height: T9Theme.rule)
             }
 
             content()
-                .padding(.top, 18)
+                .padding(.top, T9Theme.space3)
         }
+        .padding(.horizontal, T9Theme.pageInset)
     }
 }
 
@@ -59,7 +76,7 @@ struct FieldLabel: View {
     var body: some View {
         Text(text.uppercased())
             .font(T9Theme.font(11, .semibold))
-            .tracking(1.4)
+            .tracking(1.2)
             .foregroundStyle(T9Theme.muted)
     }
 }
@@ -68,10 +85,11 @@ struct T9FieldStyle: ViewModifier {
     func body(content: Content) -> some View {
         content
             .font(T9Theme.font(15, .medium))
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 14)
             .padding(.vertical, 14)
+            .frame(minHeight: 48)
             .background(T9Theme.surface)
-            .overlay(Rectangle().stroke(T9Theme.hair, lineWidth: T9Theme.stroke))
+            .overlay(Rectangle().stroke(T9Theme.hair.opacity(0.55), lineWidth: T9Theme.stroke))
     }
 }
 
@@ -81,27 +99,29 @@ extension View {
     }
 }
 
-/// Single surface panel. One outer stroke only (no nested bezel).
+/// Groups related content. One outer stroke — used only when a block is a real unit.
 struct SurfacePanel<Content: View>: View {
+    var padding: CGFloat = T9Theme.space2
     @ViewBuilder var content: () -> Content
 
     var body: some View {
         content()
-            .padding(16)
+            .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(T9Theme.surface)
-            .overlay(Rectangle().stroke(T9Theme.hair, lineWidth: T9Theme.stroke))
+            .overlay(Rectangle().stroke(T9Theme.hair.opacity(0.45), lineWidth: T9Theme.stroke))
     }
 }
 
 struct RowDivider: View {
     var body: some View {
         Rectangle()
-            .fill(T9Theme.hair.opacity(0.2))
+            .fill(T9Theme.hair.opacity(0.12))
             .frame(height: 1)
     }
 }
 
+/// Filled primary CTA — one strong action per section. No nested chrome.
 struct PrimaryButton: View {
     let title: String
     var tint: Color = T9Theme.ink
@@ -110,7 +130,7 @@ struct PrimaryButton: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
                 Text(title)
                     .font(T9Theme.font(15, .semibold))
                     .lineLimit(1)
@@ -120,26 +140,52 @@ struct PrimaryButton: View {
                         .progressViewStyle(.circular)
                         .tint(.white)
                         .scaleEffect(0.85)
-                        .frame(width: 28, height: 28)
                 } else {
-                    Text("↗")
-                        .font(T9Theme.font(13, .bold))
-                        .frame(width: 28, height: 28)
-                        .overlay(Rectangle().stroke(Color.white.opacity(0.45), lineWidth: 1))
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 13, weight: .semibold))
                 }
             }
             .foregroundStyle(.white)
-            .padding(.leading, 16)
-            .padding(.trailing, 10)
-            .padding(.vertical, 10)
+            .padding(.horizontal, T9Theme.space2)
+            .frame(minHeight: 48)
             .background(tint)
-            .overlay(Rectangle().stroke(T9Theme.hair, lineWidth: T9Theme.stroke))
         }
         .buttonStyle(.plain)
         .disabled(busy)
         .opacity(busy ? 0.85 : 1)
-        .scaleEffect(busy ? 0.99 : 1)
         .animation(T9Theme.ease, value: busy)
+    }
+}
+
+/// Outlined secondary action — for supporting verbs beside a primary.
+struct SecondaryButton: View {
+    let title: String
+    var busy: Bool = false
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack {
+                Text(title)
+                    .font(T9Theme.font(15, .medium))
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+                if busy {
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                        .tint(T9Theme.ink)
+                        .scaleEffect(0.85)
+                }
+            }
+            .foregroundStyle(T9Theme.ink)
+            .padding(.horizontal, T9Theme.space2)
+            .frame(minHeight: 48)
+            .background(T9Theme.surface)
+            .overlay(Rectangle().stroke(T9Theme.hair.opacity(0.55), lineWidth: T9Theme.stroke))
+        }
+        .buttonStyle(.plain)
+        .disabled(busy)
+        .opacity(busy ? 0.85 : 1)
     }
 }
 
@@ -152,8 +198,46 @@ struct GhostButton: View {
             Text(title)
                 .font(T9Theme.font(14, .medium))
                 .foregroundStyle(T9Theme.muted)
+                .frame(minHeight: 44, alignment: .leading)
         }
         .buttonStyle(.plain)
+    }
+}
+
+struct EmptyStateBlock: View {
+    let title: String
+    var detail: String? = nil
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(T9Theme.font(16, .semibold))
+                .foregroundStyle(T9Theme.ink)
+            if let detail {
+                Text(detail)
+                    .font(T9Theme.font(14))
+                    .foregroundStyle(T9Theme.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .lineSpacing(2)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, T9Theme.space4)
+    }
+}
+
+struct StatusBadge: View {
+    let text: String
+    var tone: Color = T9Theme.teal
+
+    var body: some View {
+        Text(text.uppercased())
+            .font(T9Theme.font(10, .semibold))
+            .tracking(1.2)
+            .foregroundStyle(tone)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(tone.opacity(0.1))
     }
 }
 
@@ -175,10 +259,7 @@ struct Eyebrow: View {
     var body: some View {
         Text(text.uppercased())
             .font(T9Theme.font(10, .semibold))
-            .tracking(1.6)
-            .foregroundStyle(T9Theme.ink)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
-            .overlay(Rectangle().stroke(T9Theme.hair, lineWidth: T9Theme.stroke))
+            .tracking(1.4)
+            .foregroundStyle(T9Theme.muted)
     }
 }

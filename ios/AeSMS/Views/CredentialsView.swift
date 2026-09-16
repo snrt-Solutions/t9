@@ -12,19 +12,23 @@ struct CredentialsView: View {
                 title: "Device login",
                 subtitle: "Password alone cannot bind this device. Approve the pending login on the web with TOTP."
             ) {
-                VStack(alignment: .leading, spacing: 14) {
-                    FieldLabel(text: "Username")
-                    TextField("Username", text: Binding(
-                        get: { app.username },
-                        set: { app.saveUsername($0) }
-                    ))
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .t9Field()
-
-                    FieldLabel(text: "Password")
-                    SecureField("Password", text: $password)
+                VStack(alignment: .leading, spacing: T9Theme.space2) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        FieldLabel(text: "Username")
+                        TextField("Username", text: Binding(
+                            get: { app.username },
+                            set: { app.saveUsername($0) }
+                        ))
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
                         .t9Field()
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        FieldLabel(text: "Password")
+                        SecureField("Password", text: $password)
+                            .t9Field()
+                    }
 
                     PrimaryButton(title: "Request release", tint: T9Theme.teal, busy: busy) {
                         Task { await login() }
@@ -34,11 +38,14 @@ struct CredentialsView: View {
 
                     if !app.statusLine.isEmpty {
                         Text(app.statusLine)
-                            .font(T9Theme.font(12))
+                            .font(T9Theme.font(13))
                             .foregroundStyle(T9Theme.muted)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
             }
+            .padding(.top, T9Theme.space2)
+            .padding(.bottom, T9Theme.space3)
         }
     }
 
