@@ -65,6 +65,28 @@ actor APIClient {
         )
     }
 
+    func createPairOffer(base: String, token: String, pubkey: String) async throws -> PairOfferResponse {
+        try await post(
+            base: base,
+            path: "/v1/pair/offer",
+            body: ["pubkey": pubkey],
+            token: token
+        )
+    }
+
+    func pollPairOffer(base: String, token: String) async throws -> PairPollResponse {
+        try await get(base: base, path: "/v1/pair/offer", token: token)
+    }
+
+    func claimPairOffer(base: String, token: String, code: String, pubkey: String) async throws -> PairClaimResponse {
+        try await post(
+            base: base,
+            path: "/v1/pair/claim",
+            body: ["code": code, "pubkey": pubkey],
+            token: token
+        )
+    }
+
     private func url(_ base: String, _ path: String) -> URL {
         let trimmed = base.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         return URL(string: trimmed + path)!

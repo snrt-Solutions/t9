@@ -22,3 +22,8 @@ targets:
         CURRENT_PROJECT_VERSION: 1
         MARKETING_VERSION: 0.1.0
         DEVELOPMENT_TEAM: ""
+        CODE_SIGN_ENTITLEMENTS: AeSMS/AeSMS.entitlements
+    entitlements:
+      path: AeSMS/AeSMS.entitlements
+      properties:
+        aps-environment: development

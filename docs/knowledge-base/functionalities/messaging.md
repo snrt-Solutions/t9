@@ -12,7 +12,7 @@ Recipients get mail without leaving a host-side archive. Operators cannot read p
 
 **Send (iOS composer)**
 
-1. User picks a local contact username and types ≤160 graphemes.
+1. User picks a recipient from the Compose **To** contact dropdown and types ≤160 graphemes.
 2. App looks up that contact’s X25519 public key (server has no address book).
 3. App seals UTF-8 plaintext: ephemeral X25519 + HKDF-SHA256 (salt `aesms-msg-v1`) + AES-GCM. Wire bytes: `ephemeral_pub (32) || nonce (12) || ciphertext || tag (16)`.
 4. `POST /v1/messages` with Bearer device token, `to_username`, base64 `ciphertext`, `graphemes`, optional sender `pubkey`.

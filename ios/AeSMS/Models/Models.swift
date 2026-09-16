@@ -50,6 +50,7 @@ struct ChatSummary: Identifiable, Hashable {
     var username: String
     var latest: LocalMessage
     var count: Int
+    var unreadCount: Int = 0
 }
 
 struct ServerInfo: Codable {
@@ -91,4 +92,23 @@ struct WireMessage: Codable {
     var from_username: String
     var ciphertext: String
     var created_at: String?
+}
+
+struct PairOfferResponse: Codable {
+    var code: String
+    var expires_at: String?
+}
+
+struct PairPeerDTO: Codable {
+    var username: String
+    var pubkey: String
+}
+
+struct PairPollResponse: Codable {
+    var status: String
+    var peer: PairPeerDTO?
+}
+
+struct PairClaimResponse: Codable {
+    var peer: PairPeerDTO
 }

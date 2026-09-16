@@ -48,6 +48,6 @@ GitHub-facing overview: [../../README.md](../../README.md).
 
 - Source of truth is `server/` and `ios/`, plus `web/` as embedded by `aesmsd`.
 - App Attest, Android, APNs, groups, media, and federation are **not** implemented; they are mentioned only as gaps.
-- Contact QR camera scanning is paste-only in this MVP.
+- Contact pairing uses rotating `aesms://pair` codes (60s TTL, one-shot claim); AVFoundation scan + paste.
 - Backup key derivation is iterated SHA-256, not Argon2, despite earlier protocol wording (corrected in PROTOCOL.md).
 - Timings (15m pending, 15m enroll, 24h mail, 1m purge) are compiled defaults in `server/internal/config`, not environment variables.

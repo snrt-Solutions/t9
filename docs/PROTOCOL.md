@@ -60,13 +60,23 @@ Active accounts are never removed this way.
 - `GET /v1/health`
 - `GET /v1/info` — `fingerprint`, `base_url`, capability flags (`web_login:false`, `pii:false`, `fetch_once:true`)
 
-## Contact QR (client-local)
+## Pair handshake (ephemeral relay)
+
+Proximity contact exchange uses a short-lived code (not a static pubkey QR):
 
 ```
-aesms://contact?u=<username>&pk=<base64url-curve25519-pubkey>&srv=<server-fingerprint>
+aesms://pair?c=<opaque-code>&srv=<server-fingerprint>
 ```
 
-Scanning creates a **local** contact only. Server never stores the contact graph. Apps should warn on `srv` mismatch vs configured server fingerprint.
+| Step | API | Notes |
+|------|-----|--------|
+| Offer | `POST /v1/pair/offer` `{pubkey}` → `{code,expires_at}` | Device Bearer; code hashed at rest; TTL ~60s; one offer per account |
+| Poll | `GET /v1/pair/offer` | Offerer; on claim returns peer once then deletes row |
+| Claim | `POST /v1/pair/claim` `{code,pubkey}` → `{peer:{username,pubkey}}` | One-shot; rejects self / expired / spent |
+
+Clients rotate the offer (~45s) so a leaked QR becomes useless. Server briefly sees both usernames until consume — **not** a durable address book.
+
+Legacy static `aesms://contact?u&pk&srv` may still be pasted by clients; new shares use pair.
 
 ## E2E crypto (client)
 
@@ -98,6 +108,7 @@ This is **not** SQLCipher page encryption; it is whole-file seal + sensitive-col
 | Create account / TOTP | yes | — | — |
 | Release / deny pending | yes (usr+TOTP) | — | — |
 | Send / fetch ciphertext | no | no | yes |
+| Pair offer / claim | no | no | yes |
 | Read plaintext | never (no keys) | never | only with local keys |
 
 ## Errors of note
