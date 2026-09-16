@@ -5,9 +5,11 @@ import (
 	"errors"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -17,6 +19,7 @@ import (
 	"github.com/aesms-io/aesms/server/internal/crypto"
 	"github.com/aesms-io/aesms/server/internal/push"
 	"github.com/aesms-io/aesms/server/internal/ratelimit"
+	"github.com/aesms-io/aesms/server/internal/sendpace"
 	"github.com/aesms-io/aesms/server/internal/setup"
 	"github.com/aesms-io/aesms/server/internal/store"
 )
@@ -29,13 +32,23 @@ type Server struct {
 	Hub     *push.Hub
 	APNs    *push.APNs
 	Limiter *ratelimit.Limiter
-	Captcha *captcha.Turnstile
+	// SendPace enforces one message / 1.5s per account (SMS pacing).
+	SendPace *sendpace.Gate
+	Captcha  *captcha.Turnstile
 	// OnConfigured is called after a successful setup save (usually os.Exit so Docker restarts).
 	OnConfigured func()
 }
 
 func New(cfg *config.Config, st *store.Store, static http.Handler, hub *push.Hub, apns *push.APNs) *Server {
-	s := &Server{Cfg: cfg, Store: st, Mux: http.NewServeMux(), Static: static, Hub: hub, APNs: apns}
+	s := &Server{
+		Cfg:      cfg,
+		Store:    st,
+		Mux:      http.NewServeMux(),
+		Static:   static,
+		Hub:      hub,
+		APNs:     apns,
+		SendPace: sendpace.New(sendpace.DefaultInterval),
+	}
 	if cfg != nil && cfg.TurnstileSecret != "" {
 		s.Captcha = &captcha.Turnstile{Secret: cfg.TurnstileSecret}
 	}
@@ -214,6 +227,7 @@ func (s *Server) handleInfo(w http.ResponseWriter, r *http.Request) {
 		"fingerprint":        s.Cfg.Fingerprint,
 		"message_ttl_h":      24,
 		"max_graphemes":      auth.MaxMessageGraphemes,
+		"send_interval_ms":   int(sendpace.DefaultInterval / time.Millisecond),
 		"web_login":          false,
 		"pii":                false,
 		"fetch_once":         true,
@@ -726,6 +740,20 @@ func (s *Server) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 	recip, err := s.Store.GetAccountByUsername(req.ToUsername)
 	if err != nil || !recip.Active {
 		writeErr(w, http.StatusNotFound, "recipient not found")
+		return
+	}
+	if retry, ok := s.SendPace.Begin(sender.ID); !ok {
+		sec := int(math.Ceil(retry.Seconds()))
+		if sec < 1 {
+			sec = 1
+		}
+		w.Header().Set("Retry-After", strconv.Itoa(sec))
+		writeErr(w, http.StatusTooManyRequests, "wait before sending again — one message every 1.5 seconds")
+		return
+	}
+	defer s.SendPace.End(sender.ID)
+	if err := s.SendPace.Hold(r.Context()); err != nil {
+		writeErr(w, http.StatusRequestTimeout, "send cancelled")
 		return
 	}
 	if req.Pubkey != "" {

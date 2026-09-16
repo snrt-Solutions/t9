@@ -23,9 +23,9 @@ actor APIClient {
         try await get(base: base, path: "/v1/device/login/\(id)")
     }
 
-    func postMessage(base: String, token: String, to: String, ciphertextB64: String, graphemes: Int, pubkey: String) async throws {
+    func postMessage(base: String, token: String, to: String, ciphertextB64: String, graphemes: Int, pubkey: String) async throws -> String {
         struct PostResp: Decodable { var id: String? }
-        let _: PostResp = try await post(
+        let resp: PostResp = try await post(
             base: base,
             path: "/v1/messages",
             body: [
@@ -36,6 +36,7 @@ actor APIClient {
             ],
             token: token
         )
+        return resp.id ?? UUID().uuidString
     }
 
     func fetchMessages(base: String, token: String) async throws -> MessagesResponse {

@@ -6,7 +6,7 @@ struct MailboxTabView: View {
     var body: some View {
         TabView {
             InboxView()
-                .tabItem { Label("Inbox", systemImage: "tray") }
+                .tabItem { Label("Chats", systemImage: "bubble.left.and.bubble.right") }
             ComposerView()
                 .tabItem { Label("Compose", systemImage: "square.and.pencil") }
             ContactsView()

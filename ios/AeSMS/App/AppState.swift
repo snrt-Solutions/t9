@@ -33,6 +33,7 @@ final class AppState: ObservableObject {
     init() {
         serverURL = UserDefaults.standard.string(forKey: "aesms.serverURL") ?? "http://127.0.0.1:8080"
         contacts = store.loadContacts()
+        inbox = store.loadKeptMessages()
         if let tok = Keychain.get("device_token"), !tok.isEmpty {
             deviceToken = tok
             phase = .mailbox
@@ -85,14 +86,16 @@ final class AppState: ObservableObject {
         guard let tok = deviceToken else { return }
         do {
             let res = try await api.fetchMessages(base: serverURL, token: tok)
+            let iso = ISO8601DateFormatter()
             for wire in res.messages {
                 guard let data = Data(base64Encoded: wire.ciphertext) else { continue }
                 let plain = (try? keys.open(ciphertext: data)) ?? "«undecryptable»"
+                let when = wire.created_at.flatMap { iso.date(from: $0) } ?? Date()
                 let local = LocalMessage(
                     id: wire.id,
                     fromUsername: wire.from_username,
                     plaintext: plain,
-                    createdAt: Date(),
+                    createdAt: when,
                     keptLocally: true
                 )
                 if !inbox.contains(where: { $0.id == local.id }) {
@@ -103,5 +106,54 @@ final class AppState: ObservableObject {
         } catch {
             statusLine = error.localizedDescription
         }
+    }
+
+    /// Local-only: server ciphertext is already gone after fetch.
+    func deleteMessage(id: String) {
+        inbox.removeAll { $0.id == id }
+        store.saveKeptMessages(inbox)
+    }
+
+    /// Keep a copy of an outbound message in the peer's chat thread.
+    func recordOutbound(id: String, toUsername: String, plaintext: String) {
+        let local = LocalMessage(
+            id: id,
+            fromUsername: toUsername,
+            plaintext: plaintext,
+            createdAt: Date(),
+            keptLocally: true,
+            outbound: true
+        )
+        if !inbox.contains(where: { $0.id == local.id }) {
+            inbox.insert(local, at: 0)
+            store.saveKeptMessages(inbox)
+        }
+    }
+
+    /// Local-only: remove every kept message in the chat with this peer.
+    func deleteChat(fromUsername: String) {
+        let key = fromUsername.lowercased()
+        inbox.removeAll { $0.fromUsername.lowercased() == key }
+        store.saveKeptMessages(inbox)
+    }
+
+    func chatSummaries() -> [ChatSummary] {
+        let groups = Dictionary(grouping: inbox) { $0.fromUsername.lowercased() }
+        return groups.values.compactMap { msgs -> ChatSummary? in
+            guard let latest = msgs.max(by: { $0.createdAt < $1.createdAt }) else { return nil }
+            return ChatSummary(
+                username: latest.fromUsername,
+                latest: latest,
+                count: msgs.count
+            )
+        }
+        .sorted { $0.latest.createdAt > $1.latest.createdAt }
+    }
+
+    func messages(fromUsername: String) -> [LocalMessage] {
+        let key = fromUsername.lowercased()
+        return inbox
+            .filter { $0.fromUsername.lowercased() == key }
+            .sorted { $0.createdAt < $1.createdAt }
     }
 }

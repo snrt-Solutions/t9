@@ -111,14 +111,22 @@ struct PrimaryButton: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 12) {
-                Text(busy ? "…" : title)
+                Text(title)
                     .font(T9Theme.font(15, .semibold))
                     .lineLimit(1)
                 Spacer(minLength: 0)
-                Text("↗")
-                    .font(T9Theme.font(13, .bold))
-                    .frame(width: 28, height: 28)
-                    .overlay(Rectangle().stroke(Color.white.opacity(0.45), lineWidth: 1))
+                if busy {
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                        .tint(.white)
+                        .scaleEffect(0.85)
+                        .frame(width: 28, height: 28)
+                } else {
+                    Text("↗")
+                        .font(T9Theme.font(13, .bold))
+                        .frame(width: 28, height: 28)
+                        .overlay(Rectangle().stroke(Color.white.opacity(0.45), lineWidth: 1))
+                }
             }
             .foregroundStyle(.white)
             .padding(.leading, 16)
@@ -129,7 +137,7 @@ struct PrimaryButton: View {
         }
         .buttonStyle(.plain)
         .disabled(busy)
-        .opacity(busy ? 0.7 : 1)
+        .opacity(busy ? 0.85 : 1)
         .scaleEffect(busy ? 0.99 : 1)
         .animation(T9Theme.ease, value: busy)
     }

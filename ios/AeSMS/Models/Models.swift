@@ -10,10 +10,46 @@ struct Contact: Codable, Identifiable, Hashable {
 
 struct LocalMessage: Codable, Identifiable, Hashable {
     var id: String
+    /// Other party in the chat (inbound sender or outbound recipient).
     var fromUsername: String
     var plaintext: String
     var createdAt: Date
     var keptLocally: Bool
+    /// True when this device sent the message (local-only history).
+    var outbound: Bool
+
+    init(
+        id: String,
+        fromUsername: String,
+        plaintext: String,
+        createdAt: Date,
+        keptLocally: Bool,
+        outbound: Bool = false
+    ) {
+        self.id = id
+        self.fromUsername = fromUsername
+        self.plaintext = plaintext
+        self.createdAt = createdAt
+        self.keptLocally = keptLocally
+        self.outbound = outbound
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        fromUsername = try c.decode(String.self, forKey: .fromUsername)
+        plaintext = try c.decode(String.self, forKey: .plaintext)
+        createdAt = try c.decode(Date.self, forKey: .createdAt)
+        keptLocally = try c.decode(Bool.self, forKey: .keptLocally)
+        outbound = try c.decodeIfPresent(Bool.self, forKey: .outbound) ?? false
+    }
+}
+
+struct ChatSummary: Identifiable, Hashable {
+    var id: String { username.lowercased() }
+    var username: String
+    var latest: LocalMessage
+    var count: Int
 }
 
 struct ServerInfo: Codable {

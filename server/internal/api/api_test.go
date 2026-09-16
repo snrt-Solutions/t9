@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -20,6 +21,7 @@ import (
 	"github.com/aesms-io/aesms/server/internal/crypto"
 	"github.com/aesms-io/aesms/server/internal/push"
 	"github.com/aesms-io/aesms/server/internal/ratelimit"
+	"github.com/aesms-io/aesms/server/internal/sendpace"
 	"github.com/aesms-io/aesms/server/internal/store"
 	"github.com/aesms-io/aesms/server/internal/webembed"
 )
@@ -47,6 +49,8 @@ func testEnv(t *testing.T) (*api.Server, *store.Store, *config.Config) {
 	}
 	cfg.Fingerprint = st.Fingerprint()
 	srv := api.New(cfg, st, webembed.Handler(), push.NewHub(), nil)
+	// Tests skip SMS pacing delay; production New() keeps the 1.5s gate.
+	srv.SendPace = sendpace.New(0)
 	return srv, st, cfg
 }
 
@@ -406,6 +410,96 @@ func TestCaptchaRequiredWhenConfigured(t *testing.T) {
 	}, nil)
 	if code != 201 {
 		t.Fatalf("good captcha: %d %#v", code, out)
+	}
+}
+
+func deviceTokenFor(t *testing.T, h http.Handler, user, pass, secret string) string {
+	t.Helper()
+	code, _, out := doJSON(t, h, "POST", "/v1/device/login", map[string]any{
+		"username": user, "password": pass, "device_id": "pace-dev", "assertion": "a",
+	}, nil)
+	if code != 202 {
+		t.Fatalf("login: %d %#v", code, out)
+	}
+	pending := out["pending_id"].(string)
+	otp, err := totp.GenerateCode(secret, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, _, rel := doJSON(t, h, "POST", "/v1/device/release", map[string]any{
+		"username": user, "code": otp, "pending_id": pending, "action": "approve",
+	}, nil)
+	if code != 200 {
+		t.Fatalf("release: %d %#v", code, rel)
+	}
+	_, _, poll := doJSON(t, h, "GET", "/v1/device/login/"+pending, nil, nil)
+	tok, _ := poll["device_token"].(string)
+	if tok == "" {
+		t.Fatal("expected device_token")
+	}
+	return tok
+}
+
+func TestSendPacePerAccount(t *testing.T) {
+	srv, _, _ := testEnv(t)
+	srv.SendPace = sendpace.New(200 * time.Millisecond)
+	h := srv.Handler()
+	secret := createActiveAccount(t, h, "pacer", "password1234")
+	_ = createActiveAccount(t, h, "pacee", "password1234")
+	tok := deviceTokenFor(t, h, "pacer", "password1234", secret)
+
+	body := map[string]any{
+		"to_username": "pacee",
+		"ciphertext":  "YQ==",
+		"graphemes":   1,
+	}
+	hdr := map[string]string{"Authorization": "Bearer " + tok}
+
+	type result struct {
+		code int
+		err  any
+		ra   string
+	}
+	ch := make(chan result, 2)
+	start := make(chan struct{})
+	for i := 0; i < 2; i++ {
+		go func() {
+			<-start
+			code, rh, out := doJSON(t, h, "POST", "/v1/messages", body, hdr)
+			ch <- result{code: code, err: out["error"], ra: rh.Get("Retry-After")}
+		}()
+	}
+	close(start)
+	a, b := <-ch, <-ch
+	codes := []int{a.code, b.code}
+	var saw201, saw429 bool
+	for _, c := range codes {
+		if c == 201 {
+			saw201 = true
+		}
+		if c == 429 {
+			saw429 = true
+		}
+	}
+	if !saw201 || !saw429 {
+		t.Fatalf("want one 201 and one 429, got %d (%v) and %d (%v)", a.code, a.err, b.code, b.err)
+	}
+	limited := a
+	if b.code == 429 {
+		limited = b
+	}
+	if limited.ra == "" {
+		t.Fatal("missing Retry-After on 429")
+	}
+	if !strings.Contains(fmt.Sprint(limited.err), "wait before") {
+		t.Fatalf("unexpected error: %#v", limited.err)
+	}
+
+	// After the paced send finishes, another send is allowed.
+	time.Sleep(250 * time.Millisecond)
+	code, _, out := doJSON(t, h, "POST", "/v1/messages", body, hdr)
+	if code != 201 {
+		t.Fatalf("follow-up send: %d %#v", code, out)
 	}
 }
 

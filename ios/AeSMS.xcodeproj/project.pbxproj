@@ -16,6 +16,7 @@
 		9E56E1D47FC14299A71138C6 /* ContactsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D025CE0497E24AD4B60B1C3C /* ContactsView.swift */; };
 		874C3047020740FFA5FC628A /* CredentialsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BD7E139ADC8481A9E559AEF /* CredentialsView.swift */; };
 		D19206C193E94EDABE96A36C /* InboxView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 608740C75D7C45B8B051BFB7 /* InboxView.swift */; };
+		B1CHAT01A1B2C3D4E5F60708 /* ChatThreadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1CHAT01A1B2C3D4E5F60701 /* ChatThreadView.swift */; };
 		64AAF8D78CAB45B5BD57C7A0 /* MailboxTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53D65F3A4F6046A68E4417A1 /* MailboxTabView.swift */; };
 		085AC80490CC49468FE499F6 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A76F7E2A69EC48D8A1EC2FE4 /* RootView.swift */; };
 		916841A572D54EA585EED5D3 /* ServerURLView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FD6F3CC6FD44A34AE70A8BF /* ServerURLView.swift */; };
@@ -40,6 +41,7 @@
 		D025CE0497E24AD4B60B1C3C /* ContactsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AeSMS/Views/ContactsView.swift"; sourceTree = "<group>"; };
 		5BD7E139ADC8481A9E559AEF /* CredentialsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AeSMS/Views/CredentialsView.swift"; sourceTree = "<group>"; };
 		608740C75D7C45B8B051BFB7 /* InboxView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AeSMS/Views/InboxView.swift"; sourceTree = "<group>"; };
+		B1CHAT01A1B2C3D4E5F60701 /* ChatThreadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AeSMS/Views/ChatThreadView.swift"; sourceTree = "<group>"; };
 		53D65F3A4F6046A68E4417A1 /* MailboxTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AeSMS/Views/MailboxTabView.swift"; sourceTree = "<group>"; };
 		A76F7E2A69EC48D8A1EC2FE4 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AeSMS/Views/RootView.swift"; sourceTree = "<group>"; };
 		9FD6F3CC6FD44A34AE70A8BF /* ServerURLView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AeSMS/Views/ServerURLView.swift"; sourceTree = "<group>"; };
@@ -76,6 +78,7 @@
 				D025CE0497E24AD4B60B1C3C /* ContactsView.swift */,
 				5BD7E139ADC8481A9E559AEF /* CredentialsView.swift */,
 				608740C75D7C45B8B051BFB7 /* InboxView.swift */,
+				B1CHAT01A1B2C3D4E5F60701 /* ChatThreadView.swift */,
 				53D65F3A4F6046A68E4417A1 /* MailboxTabView.swift */,
 				A76F7E2A69EC48D8A1EC2FE4 /* RootView.swift */,
 				9FD6F3CC6FD44A34AE70A8BF /* ServerURLView.swift */,
@@ -113,6 +116,7 @@
 				9E56E1D47FC14299A71138C6 /* ContactsView.swift in Sources */,
 				874C3047020740FFA5FC628A /* CredentialsView.swift in Sources */,
 				D19206C193E94EDABE96A36C /* InboxView.swift in Sources */,
+				B1CHAT01A1B2C3D4E5F60708 /* ChatThreadView.swift in Sources */,
 				64AAF8D78CAB45B5BD57C7A0 /* MailboxTabView.swift in Sources */,
 				085AC80490CC49468FE499F6 /* RootView.swift in Sources */,
 				916841A572D54EA585EED5D3 /* ServerURLView.swift in Sources */,

@@ -16,7 +16,7 @@ Each insert sets `expires_at = now + 24h` (`config.MessageTTL`). Fetch ignores e
 
 ## Client keep
 
-The iOS inbox stores decrypted `LocalMessage` values locally after a successful fetch. That is the only history. It is not synced, not backed up in the T9BK1 blob, and not visible to `aesmsd`.
+The iOS app stores decrypted inbound messages and local outbound copies in `kept-messages.json` after send/fetch. That is the only history. It is not synced, not backed up in the T9BK1 blob, and not visible to `aesmsd`.
 
 ## Why 160 graphemes
 

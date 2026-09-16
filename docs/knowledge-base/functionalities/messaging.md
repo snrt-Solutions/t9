@@ -16,13 +16,16 @@ Recipients get mail without leaving a host-side archive. Operators cannot read p
 2. App looks up that contact’s X25519 public key (server has no address book).
 3. App seals UTF-8 plaintext: ephemeral X25519 + HKDF-SHA256 (salt `aesms-msg-v1`) + AES-GCM. Wire bytes: `ephemeral_pub (32) || nonce (12) || ciphertext || tag (16)`.
 4. `POST /v1/messages` with Bearer device token, `to_username`, base64 `ciphertext`, `graphemes`, optional sender `pubkey`.
-5. Server checks token, grapheme range 1–160, ciphertext non-empty and ≤4096 bytes, recipient exists and is active. Optionally stores sender pubkey on the sender account. Inserts the message with `expires_at = now + 24h`. Returns `id` and `expires_at`.
+5. Server checks token, grapheme range 1–160, ciphertext non-empty and ≤4096 bytes, recipient exists and is active. Enforces **one send every 1.5s per account** (holds the request ~1.5s before insert so the client can show “Sending…”). Optionally stores sender pubkey on the sender account. Inserts the message with `expires_at = now + 24h`. Returns `id` and `expires_at`.
+6. Overlapping or too-soon sends → `429` with `Retry-After` and error `wait before sending again — one message every 1.5 seconds`.
+7. On success the app also appends a local **outbound** copy (`outbound: true`, peer = recipient) to `kept-messages.json` so chats show both directions.
 
-**Fetch (iOS inbox)**
+**Fetch (iOS inbox / chats)**
 
 1. `GET /v1/messages` with Bearer device token.
 2. Server selects non-expired messages for that account, returns them, **deletes those rows**.
-3. App decrypts with the local identity private key, keeps copies in `kept-messages.json`. Undecryptable payloads become the placeholder `«undecryptable»`.
+3. App decrypts with the local identity private key, keeps copies in `kept-messages.json`, grouped in the UI as **chats** by sender username. Undecryptable payloads become the placeholder `«undecryptable»`.
+4. User may delete a single local message or clear a whole chat (all messages from that sender). That only updates `kept-messages.json` — the server already dropped ciphertext on fetch.
 
 ## Entry Points
 
@@ -34,6 +37,7 @@ Recipients get mail without leaving a host-side archive. Operators cannot read p
 ## Rules
 
 - Mailbox routes require a valid **device** Bearer token (`requireDevice`). Missing/invalid → `401`.
+- Per-account send pace: **1 message / 1.5s** (`sendpace`); concurrent sends while one is held → `429`.
 - `graphemes` is client-authoritative; server only rejects out of `1..160`. It does not re-count ciphertext as text.
 - Recipient unknown or inactive → `404 recipient not found`.
 - Ciphertext must be valid standard base64, length 1–4096 after decode.
@@ -68,7 +72,7 @@ GET payload:
 }
 ```
 
-Local `LocalMessage`: id, from username, plaintext, createdAt, keptLocally.
+Local `LocalMessage`: id, peer username (`fromUsername`), plaintext, createdAt, keptLocally, outbound (sent by this device).
 
 ## Dependencies
 
@@ -80,10 +84,11 @@ Local `LocalMessage`: id, from username, plaintext, createdAt, keptLocally.
 ## Code Locations
 
 - `server/internal/api/api.go` — `handlePostMessage`, `handleGetMessages`
+- `server/internal/sendpace` — per-account 1.5s send gate
 - `server/internal/store/store.go` — insert / fetch-and-delete / purge
 - `server/internal/purge/purge.go`
-- `ios/AeSMS/Services/Crypto.swift`, `ios/AeSMS/Views/ComposerView.swift`, `ios/AeSMS/Views/InboxView.swift`
-- Tests: `TestMessagesRejectNonDeviceToken`, `TestFetchOnceDeletes`
+- `ios/AeSMS/Services/Crypto.swift`, `ios/AeSMS/Views/ComposerView.swift`, `ios/AeSMS/Views/InboxView.swift`, `ios/AeSMS/Views/ChatThreadView.swift`
+- Tests: `TestMessagesRejectNonDeviceToken`, `TestFetchOnceDeletes`, `TestSendPacePerAccount`
 
 ## Related Documentation
 

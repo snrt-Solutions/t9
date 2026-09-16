@@ -5,9 +5,11 @@ struct ComposerView: View {
     @State private var to = ""
     @State private var bodyText = ""
     @State private var status = ""
+    @State private var sending = false
 
     private var graphemes: Int { Grapheme.count(bodyText) }
     private var over: Bool { graphemes > 160 }
+    private var canSend: Bool { !over && !bodyText.isEmpty && !to.isEmpty && !sending }
 
     var body: some View {
         ScrollView {
@@ -17,6 +19,7 @@ struct ComposerView: View {
                     TextField("contact username", text: $to)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
+                        .disabled(sending)
                         .t9Field()
 
                     FieldLabel(text: "Message")
@@ -27,6 +30,8 @@ struct ComposerView: View {
                         .scrollContentBackground(.hidden)
                         .background(T9Theme.surface)
                         .overlay(Rectangle().stroke(T9Theme.hair, lineWidth: T9Theme.stroke))
+                        .disabled(sending)
+                        .opacity(sending ? 0.7 : 1)
 
                     HStack {
                         Text("\(graphemes)/160")
@@ -35,16 +40,20 @@ struct ComposerView: View {
                         Spacer()
                     }
 
-                    PrimaryButton(title: "Send sealed", tint: over ? T9Theme.warn : T9Theme.ink) {
+                    PrimaryButton(
+                        title: sending ? "Sending…" : "Send sealed",
+                        tint: over ? T9Theme.warn : T9Theme.ink,
+                        busy: sending
+                    ) {
                         Task { await send() }
                     }
-                    .disabled(over || bodyText.isEmpty || to.isEmpty)
-                    .opacity(over || bodyText.isEmpty || to.isEmpty ? 0.5 : 1)
+                    .disabled(!canSend)
+                    .opacity(canSend || sending ? 1 : 0.5)
 
                     if !status.isEmpty {
                         Text(status)
                             .font(T9Theme.font(12))
-                            .foregroundStyle(T9Theme.muted)
+                            .foregroundStyle(sending ? T9Theme.teal : T9Theme.muted)
                     }
                 }
             }
@@ -52,14 +61,19 @@ struct ComposerView: View {
     }
 
     private func send() async {
+        guard !sending else { return }
         guard let tok = app.deviceToken else { return }
         guard let contact = app.contacts.first(where: { $0.username.lowercased() == to.lowercased() }) else {
             status = "scan their QR first - no server address book"
             return
         }
+        sending = true
+        status = "Sending…"
+        defer { sending = false }
         do {
-            let sealed = try app.keys.seal(plaintext: bodyText, toRecipientPubB64: contact.pubkey)
-            try await app.api.postMessage(
+            let plain = bodyText
+            let sealed = try app.keys.seal(plaintext: plain, toRecipientPubB64: contact.pubkey)
+            let id = try await app.api.postMessage(
                 base: app.serverURL,
                 token: tok,
                 to: to,
@@ -67,7 +81,8 @@ struct ComposerView: View {
                 graphemes: graphemes,
                 pubkey: app.keys.publicKeyB64()
             )
-            status = "sent"
+            app.recordOutbound(id: id, toUsername: contact.username, plaintext: plain)
+            status = "Sent"
             bodyText = ""
         } catch {
             status = error.localizedDescription

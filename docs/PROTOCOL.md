@@ -52,6 +52,7 @@ Active accounts are never removed this way.
   `{to_username, ciphertext (b64), graphemes (1..160), pubkey?}`
 - `GET /v1/messages` device token only — **fetch-and-delete** all non-expired messages for that account
 - Max **160 Unicode graphemes** (client authoritative count; server rejects out of range)
+- **Send pace:** one `POST /v1/messages` per account every **1.5s** (server holds ~1.5s before store; overlap → `429` + `Retry-After`)
 - Unfetched messages expire after **24h** (background purge)
 
 ### Public
