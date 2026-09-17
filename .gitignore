@@ -1,6 +1,9 @@
 .tools/
 server/data/
 **/data/
+# Keep Android client source (package io.aesms.app.data)
+!android/app/src/main/java/io/aesms/app/data/
+!android/app/src/main/java/io/aesms/app/data/**
 **/.aesms.work.db*
 *.sealed
 .env
@@ -14,3 +17,13 @@ DerivedData/
 deploy/.env.bak
 .cursor/
 /aesmsdev
+
+# Android
+android/local.properties
+android/.gradle/
+android/.kotlin/
+android/**/build/
+android/*.apk
+android/*.aab
+android/.idea/
+android/captures/

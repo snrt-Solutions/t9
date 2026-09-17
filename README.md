@@ -4,7 +4,7 @@
   <img src="brand/aesms-mark.png" alt="AeSMS.io" width="160" height="160" />
 </p>
 
-**Fetch-once messaging. Pure privacy but feels like SMS.** Self-host a blind Go mailbox. Ciphertext lives only on a signed iOS app. Browsers can create accounts, enroll TOTP, and release a pending device login — they never receive a mailbox session.
+**Fetch-once messaging. Pure privacy but feels like SMS.** Self-host a blind Go mailbox. Ciphertext lives only on a signed mobile app (iOS or Android). Browsers can create accounts, enroll TOTP, and release a pending device login — they never receive a mailbox session.
 
 AeSMS.io is a same-server, no-PII messenger for people who want short sealed notes that disappear from the host after they are read. It is not a social network, not a webmail client, and not a multi-device chat platform.
 
@@ -34,6 +34,7 @@ Wire format and crypto details: [docs/PROTOCOL.md](docs/PROTOCOL.md). Adversarie
 - [Configuration](#configuration)
 - [Deployment](#deployment)
 - [iOS client](#ios-client)
+- [Android client](#android-client)
 - [Security model](#security-model)
 - [Development](#development)
 - [Limitations (MVP)](#limitations-mvp)
@@ -322,6 +323,28 @@ More: [ios/README.md](ios/README.md) and [docs/knowledge-base/functionalities/co
 
 ---
 
+## Android client
+
+Kotlin + Jetpack Compose MVP under `android/`. Sideload a debug APK for device testing:
+
+```bash
+cd android
+# local.properties → sdk.dir=/path/to/Android/sdk
+./gradlew assembleDebug
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+- Package id (debug): `io.aesms.app.debug`
+- Same flows as iOS (server URL → credentials → web release → mailbox)
+- EncryptedSharedPreferences for keys + device token; X25519 + AES-GCM message crypto
+- Play Integrity not implemented — assertion is `aesms-android-mvp-signed-placeholder`
+- Pair QR is paste-only in this MVP (camera scan later)
+- Emulator → host Mac: `http://10.0.2.2:8080`
+
+More: [android/README.md](android/README.md).
+
+---
+
 ## Security model
 
 **Assets:** password verifier, TOTP secret, hashed device token, message ciphertext, client identity keys, local contact graph.
@@ -368,9 +391,8 @@ There is **no telemetry** by design.
 
 ## Limitations (MVP)
 
-- App Attest not enforced (assertion is a non-empty placeholder)
-- No Android client
-- No APNs / push (the inbox polls on demand)
+- App Attest / Play Integrity not enforced (assertion is a non-empty placeholder)
+- No FCM / APNs push while backgrounded (SSE while foregrounded)
 - No groups, media, or multi-device concurrent sessions
 - No federation / cross-server contacts
 - Camera QR scan is paste-only in the open-source MVP
@@ -390,6 +412,7 @@ There is **no telemetry** by design.
 | [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) | Assets, adversaries, residual risk |
 | [docs/knowledge-base/index.md](docs/knowledge-base/index.md) | Feature-level knowledge base |
 | [ios/README.md](ios/README.md) | Xcode / screens / client caveats |
+| [android/README.md](android/README.md) | Gradle / APK sideload / client caveats |
 | [deploy/.env.example](deploy/.env.example) | Compose environment template |
 
 ---

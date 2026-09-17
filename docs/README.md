@@ -7,7 +7,7 @@ Start here if you are:
 - **Running a node** — [../README.md](../README.md) (quick start, env, Docker, tunnel)
 - **Implementing a client** — [PROTOCOL.md](PROTOCOL.md)
 - **Reviewing security** — [THREAT_MODEL.md](THREAT_MODEL.md)
-- **Changing server or iOS behavior** — [knowledge-base/index.md](knowledge-base/index.md)
+- **Changing server or client behavior** — [knowledge-base/index.md](knowledge-base/index.md)
 
 ## Protocol and threat model
 
@@ -22,11 +22,12 @@ Those two documents are the canonical *product* spec. If a knowledge-base page a
 
 [knowledge-base/index.md](knowledge-base/index.md) is a maintainer-oriented map: one page per major functionality, plus shared concepts and integrations.
 
-It is generated from this repository as it exists today (Go `aesmsd` + SwiftUI iOS MVP). It does not invent Android, App Attest enforcement, APNs, or federation.
+It is generated from this repository as it exists today (Go `aesmsd` + SwiftUI iOS MVP + Kotlin Compose Android MVP). It does not invent App Attest / Play Integrity enforcement, APNs/FCM, or federation.
 
 ## Client notes
 
-iOS build and screen list live next to the Xcode project: [../ios/README.md](../ios/README.md).
+- iOS: [../ios/README.md](../ios/README.md)
+- Android: [../android/README.md](../android/README.md)
 
 ## Scope
 

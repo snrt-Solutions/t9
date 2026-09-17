@@ -1,6 +1,6 @@
 # AeSMS.io knowledge base
 
-AeSMS.io is a self-hosted **fetch-once** mailbox. The Go daemon (`aesmsd`) stores ciphertext and delivery metadata. The signed iOS app holds identity keys and the only credential that can send or fetch mail. The embedded website creates accounts, enrolls TOTP, and releases pending device logins — it never issues a mailbox session.
+AeSMS.io is a self-hosted **fetch-once** mailbox. The Go daemon (`aesmsd`) stores ciphertext and delivery metadata. Signed mobile apps (iOS / Android) hold identity keys and the only credential that can send or fetch mail. The embedded website creates accounts, enrolls TOTP, and releases pending device logins — it never issues a mailbox session.
 
 This knowledge base describes behavior that exists in the current repository. It is not a roadmap.
 
@@ -46,8 +46,8 @@ GitHub-facing overview: [../../README.md](../../README.md).
 
 ## Scope and assumptions
 
-- Source of truth is `server/` and `ios/`, plus `web/` as embedded by `aesmsd`.
-- App Attest, Android, APNs, groups, media, and federation are **not** implemented; they are mentioned only as gaps.
-- Contact pairing uses rotating `aesms://pair` codes (60s TTL, one-shot claim); AVFoundation scan + paste.
+- Source of truth is `server/`, `ios/`, and `android/`, plus `web/` as embedded by `aesmsd`.
+- App Attest / Play Integrity, background push (APNs/FCM), groups, media, and federation are **not** implemented; they are mentioned only as gaps.
+- Contact pairing uses rotating `aesms://pair` codes (60s TTL, one-shot claim); AVFoundation/camera scan + paste (paste-only on Android MVP).
 - Backup key derivation is iterated SHA-256, not Argon2, despite earlier protocol wording (corrected in PROTOCOL.md).
 - Timings (15m pending, 15m enroll, 24h mail, 1m purge) are compiled defaults in `server/internal/config`, not environment variables.
