@@ -1,34 +1,39 @@
-/* Boxy terminal UI — Cascadia Code, sharp corners, no shadows */
-/* Font: https://fonts.google.com/specimen/Cascadia+Code (OFL, self-hosted) */
+/* AeSMS.io CI — IBM Plex Mono, sharp corners, no shadows */
+/* Font: https://github.com/IBM/plex (OFL, self-hosted) */
 @font-face {
-  font-family: "Cascadia Code";
+  font-family: "IBM Plex Mono";
   font-style: normal;
-  font-weight: 200 700;
+  font-weight: 400;
   font-display: swap;
-  src: url("/assets/fonts/CascadiaCode-latin.woff2") format("woff2");
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  src: url("/assets/fonts/IBMPlexMono-Regular-latin.woff2") format("woff2");
 }
 @font-face {
-  font-family: "Cascadia Code";
+  font-family: "IBM Plex Mono";
   font-style: normal;
-  font-weight: 200 700;
+  font-weight: 500;
   font-display: swap;
-  src: url("/assets/fonts/CascadiaCode-latin-ext.woff2") format("woff2");
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+  src: url("/assets/fonts/IBMPlexMono-Medium-latin.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/assets/fonts/IBMPlexMono-SemiBold-latin.woff2") format("woff2");
 }
 
 :root {
-  --bg: #ececec;
-  --ink: #111111;
-  --muted: #4a4a4a;
-  --accent: #1a5cff;
-  --accent-2: #00856f;
+  --bg: #f4f4f4;
+  --ink: #0b0b0b;
+  --muted: #9aa0a6;
+  --accent: #0066ff;
+  --accent-2: #0066ff;
   --warn: #c45c1a;
-  --hair: #111111;
+  --hair: #0b0b0b;
   --inner: #ffffff;
   --ease: cubic-bezier(0.32, 0.72, 0, 1);
   --radius: 0;
-  --font: "Cascadia Code", ui-monospace, monospace;
+  --font: "IBM Plex Mono", ui-monospace, monospace;
 }
 
 * { box-sizing: border-box; border-radius: 0 !important; }
@@ -85,8 +90,8 @@ a:hover { text-decoration: underline; }
   height: 48px;
   flex: 0 0 auto;
   display: block;
-  border: 2px solid var(--hair);
-  background: #ececec;
+  border: 1px solid var(--hair);
+  background: var(--bg);
   image-rendering: auto;
 }
 
@@ -98,9 +103,15 @@ a:hover { text-decoration: underline; }
 }
 
 .brand-name {
-  font-weight: 700;
+  font-weight: 600;
   font-size: 1.6rem;
   line-height: 1;
+  color: var(--ink);
+}
+
+.brand-name .tld {
+  color: var(--accent);
+  font-weight: 600;
 }
 
 .brand span {
@@ -119,6 +130,7 @@ a:hover { text-decoration: underline; }
   text-transform: none;
   line-height: 1.35;
   margin-top: 0;
+  color: var(--muted);
 }
 
 .brand .promise em {

@@ -2,6 +2,7 @@ package io.aesms.app.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -43,8 +44,14 @@ fun ServerURLScreen(vm: AppViewModel) {
             .padding(top = T9Theme.space2, bottom = T9Theme.space3),
     ) {
         Column(modifier = Modifier.padding(horizontal = T9Theme.pageInset)) {
-            Text("AeSMS", style = T9Theme.text(32, FontWeight.Bold))
-            Text("fetch-once messaging", style = T9Theme.text(14, FontWeight.Medium).copy(color = T9Theme.muted))
+            Row {
+                Text("AeSMS", style = T9Theme.text(32, FontWeight.Bold))
+                Text(".io", style = T9Theme.text(32, FontWeight.Bold).copy(color = T9Theme.accent))
+            }
+            Text(
+                "Fetch-once messaging. Pure privacy but feels like SMS.",
+                style = T9Theme.text(14, FontWeight.Medium).copy(color = T9Theme.muted),
+            )
         }
         Spacer(Modifier.height(T9Theme.space3))
         ScreenChrome(

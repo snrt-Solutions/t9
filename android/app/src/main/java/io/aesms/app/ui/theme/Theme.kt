@@ -33,14 +33,15 @@ import io.aesms.app.R
 import androidx.compose.ui.Modifier
 
 object T9Theme {
-    val bg = Color(0xFFECECEC)
+    val bg = Color(0xFFF4F4F4)
     val surface = Color.White
-    val ink = Color(0xFF111111)
-    val muted = Color(0xFF4A4A4A)
-    val accent = Color(0xFF1A5CFF)
-    val teal = Color(0xFF00856F)
+    val ink = Color(0xFF0B0B0B)
+    val muted = Color(0xFF9AA0A6)
+    val accent = Color(0xFF0066FF)
+    /** Success / live — CI has no teal; use accent. */
+    val teal = accent
     val warn = Color(0xFFC45C1A)
-    val hair = Color.Black
+    val hair = ink
     val stroke = 1.dp
     val rule = 1.5.dp
     val space1 = 8.dp
@@ -48,7 +49,11 @@ object T9Theme {
     val space3 = 24.dp
     val space4 = 32.dp
     val pageInset = 20.dp
-    val fontFamily = FontFamily(Font(R.font.cascadia_code))
+    val fontFamily = FontFamily(
+        Font(R.font.ibm_plex_mono_regular, FontWeight.Normal),
+        Font(R.font.ibm_plex_mono_medium, FontWeight.Medium),
+        Font(R.font.ibm_plex_mono_semibold, FontWeight.SemiBold),
+    )
     fun text(size: Int, weight: FontWeight = FontWeight.Normal) = TextStyle(
         fontFamily = fontFamily,
         fontSize = size.sp,

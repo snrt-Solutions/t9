@@ -176,7 +176,10 @@ fun LockGateScreen(vm: AppViewModel, activity: FragmentActivity) {
             .background(T9Theme.bg)
             .padding(horizontal = T9Theme.pageInset, vertical = T9Theme.space4),
     ) {
-        Text("AeSMS", style = T9Theme.text(32, FontWeight.Bold))
+        Row {
+            Text("AeSMS", style = T9Theme.text(32, FontWeight.Bold))
+            Text(".io", style = T9Theme.text(32, FontWeight.Bold).copy(color = T9Theme.accent))
+        }
         Spacer(Modifier.height(8.dp))
         Text("Locked", style = T9Theme.text(20, FontWeight.SemiBold))
         Spacer(Modifier.height(8.dp))

@@ -31,8 +31,12 @@
 		E0BDE59560F94E23AD77C4C7 /* AeSMSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AeSMS/App/AeSMSApp.swift"; sourceTree = "<group>"; };
 		0F04163B44134C36ACED9C2A /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AeSMS/Models/Models.swift"; sourceTree = "<group>"; };
 		061C74E4F8434AEBAB013415 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "AeSMS/Resources/Info.plist"; sourceTree = "<group>"; };
-		CA5CAD1A0001C0DEF0010001 /* CascadiaCode.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "AeSMS/Resources/Fonts/CascadiaCode.ttf"; sourceTree = "<group>"; };
-		CA5CAD1A0001C0DEF0010002 /* CascadiaCode.ttf in Resources */ = {isa = PBXBuildFile; fileRef = CA5CAD1A0001C0DEF0010001 /* CascadiaCode.ttf */; };
+		CA5CAD1A0001C0DEF0010001 /* IBMPlexMono-Regular.otf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "AeSMS/Resources/Fonts/IBMPlexMono-Regular.otf"; sourceTree = "<group>"; };
+		CA5CAD1A0001C0DEF0010002 /* IBMPlexMono-Regular.otf in Resources */ = {isa = PBXBuildFile; fileRef = CA5CAD1A0001C0DEF0010001 /* IBMPlexMono-Regular.otf */; };
+		CA5CAD1A0001C0DEF0010003 /* IBMPlexMono-Medium.otf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "AeSMS/Resources/Fonts/IBMPlexMono-Medium.otf"; sourceTree = "<group>"; };
+		CA5CAD1A0001C0DEF0010004 /* IBMPlexMono-Medium.otf in Resources */ = {isa = PBXBuildFile; fileRef = CA5CAD1A0001C0DEF0010003 /* IBMPlexMono-Medium.otf */; };
+		CA5CAD1A0001C0DEF0010005 /* IBMPlexMono-SemiBold.otf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "AeSMS/Resources/Fonts/IBMPlexMono-SemiBold.otf"; sourceTree = "<group>"; };
+		CA5CAD1A0001C0DEF0010006 /* IBMPlexMono-SemiBold.otf in Resources */ = {isa = PBXBuildFile; fileRef = CA5CAD1A0001C0DEF0010005 /* IBMPlexMono-SemiBold.otf */; };
 		DAD81C16C5F04533A1FE2257 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AeSMS/Services/APIClient.swift"; sourceTree = "<group>"; };
 		1097785D3F664D89BFA9D9BC /* Crypto.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AeSMS/Services/Crypto.swift"; sourceTree = "<group>"; };
 		A06D94500CDC4CBFBCDC988D /* Keychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AeSMS/Services/Keychain.swift"; sourceTree = "<group>"; };
@@ -70,7 +74,9 @@
 				E0BDE59560F94E23AD77C4C7 /* AeSMSApp.swift */,
 				0F04163B44134C36ACED9C2A /* Models.swift */,
 				061C74E4F8434AEBAB013415 /* Info.plist */,
-				CA5CAD1A0001C0DEF0010001 /* CascadiaCode.ttf */,
+				CA5CAD1A0001C0DEF0010001 /* IBMPlexMono-Regular.otf */,
+				CA5CAD1A0001C0DEF0010003 /* IBMPlexMono-Medium.otf */,
+				CA5CAD1A0001C0DEF0010005 /* IBMPlexMono-SemiBold.otf */,
 				DAD81C16C5F04533A1FE2257 /* APIClient.swift */,
 				1097785D3F664D89BFA9D9BC /* Crypto.swift */,
 				A06D94500CDC4CBFBCDC988D /* Keychain.swift */,
@@ -144,7 +150,9 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				CA5CAD1A0001C0DEF0010002 /* CascadiaCode.ttf in Resources */,
+				CA5CAD1A0001C0DEF0010002 /* IBMPlexMono-Regular.otf in Resources */,
+				CA5CAD1A0001C0DEF0010004 /* IBMPlexMono-Medium.otf in Resources */,
+				CA5CAD1A0001C0DEF0010006 /* IBMPlexMono-SemiBold.otf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

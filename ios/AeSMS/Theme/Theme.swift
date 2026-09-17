@@ -1,24 +1,22 @@
 import SwiftUI
 
-/// Cascadia system: sharp corners, purposeful structure, spacious rhythm.
-/// Borders mark interactive surfaces or true content groups — never decoration.
+/// AeSMS.io CI — IBM Plex Mono, sharp corners, purposeful structure.
+/// Primary #0B0B0B · Accent #0066FF · Background #F4F4F4 · Secondary #9AA0A6
 enum T9Theme {
-    static let bg = Color(red: 0.925, green: 0.925, blue: 0.925)
+    static let bg = Color(red: 0xF4 / 255, green: 0xF4 / 255, blue: 0xF4 / 255)
     static let surface = Color.white
-    static let ink = Color(red: 0.067, green: 0.067, blue: 0.067)
-    static let muted = Color(red: 0.29, green: 0.29, blue: 0.29)
-    static let accent = Color(red: 0.102, green: 0.361, blue: 1.0)
-    static let teal = Color(red: 0.0, green: 0.522, blue: 0.435)
+    static let ink = Color(red: 0x0B / 255, green: 0x0B / 255, blue: 0x0B / 255)
+    static let muted = Color(red: 0x9A / 255, green: 0xA0 / 255, blue: 0xA6 / 255)
+    static let accent = Color(red: 0x00 / 255, green: 0x66 / 255, blue: 1.0)
+    /// Success / live — same as accent in the CI (no teal token).
+    static let teal = accent
     static let warn = Color(red: 0.769, green: 0.361, blue: 0.102)
-    static let hair = Color.black
+    static let hair = ink
     static let ease = Animation.timingCurve(0.32, 0.72, 0, 1, duration: 0.45)
 
-    /// Structural outline for inputs and panels (1pt — readable, not heavy).
     static let stroke: CGFloat = 1
-    /// Stronger rule only when separating major page regions.
     static let rule: CGFloat = 1.5
 
-    // 8pt spacing scale
     static let space1: CGFloat = 8
     static let space2: CGFloat = 16
     static let space3: CGFloat = 24
@@ -26,7 +24,16 @@ enum T9Theme {
     static let pageInset: CGFloat = 20
 
     static func font(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
-        .custom("Cascadia Code", size: size).weight(weight)
+        let name: String
+        switch weight {
+        case .semibold, .bold, .heavy, .black:
+            name = "IBMPlexMono-SemiBold"
+        case .medium:
+            name = "IBMPlexMono-Medium"
+        default:
+            name = "IBMPlexMono-Regular"
+        }
+        return .custom(name, size: size)
     }
 }
 
@@ -99,7 +106,6 @@ extension View {
     }
 }
 
-/// Groups related content. One outer stroke — used only when a block is a real unit.
 struct SurfacePanel<Content: View>: View {
     var padding: CGFloat = T9Theme.space2
     @ViewBuilder var content: () -> Content
@@ -121,7 +127,6 @@ struct RowDivider: View {
     }
 }
 
-/// Filled primary CTA — one strong action per section. No nested chrome.
 struct PrimaryButton: View {
     let title: String
     var tint: Color = T9Theme.ink
@@ -157,7 +162,6 @@ struct PrimaryButton: View {
     }
 }
 
-/// Outlined secondary action — for supporting verbs beside a primary.
 struct SecondaryButton: View {
     let title: String
     var busy: Bool = false
@@ -241,7 +245,6 @@ struct StatusBadge: View {
     }
 }
 
-// Compatibility aliases used while views migrate
 typealias IslandButton = PrimaryButtonCompat
 
 struct PrimaryButtonCompat: View {

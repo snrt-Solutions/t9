@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="AeSMS.io">
+  <!-- Mark: [ / ]  primary #0B0B0B, accent #0066FF -->
+  <g fill="none" stroke-linecap="square" stroke-linejoin="miter">
+    <path stroke="#0B0B0B" stroke-width="88"
+          d="M280 184 H184 V840 H280" />
+    <path stroke="#0B0B0B" stroke-width="88"
+          d="M744 184 H840 V840 H744" />
+    <path fill="#0066FF"
+          d="M392 780 L632 244 L700 280 L460 816 Z" />
+  </g>
+</svg>

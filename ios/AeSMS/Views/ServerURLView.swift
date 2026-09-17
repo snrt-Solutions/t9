@@ -44,12 +44,18 @@ struct ServerURLView: View {
 
     private var brand: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("AeSMS")
-                .font(T9Theme.font(32, .bold))
-                .foregroundStyle(T9Theme.ink)
-            Text("fetch-once messaging")
+            HStack(alignment: .firstTextBaseline, spacing: 0) {
+                Text("AeSMS")
+                    .font(T9Theme.font(32, .bold))
+                    .foregroundStyle(T9Theme.ink)
+                Text(".io")
+                    .font(T9Theme.font(32, .bold))
+                    .foregroundStyle(T9Theme.accent)
+            }
+            Text("Fetch-once messaging. Pure privacy but feels like SMS.")
                 .font(T9Theme.font(14, .medium))
                 .foregroundStyle(T9Theme.muted)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 

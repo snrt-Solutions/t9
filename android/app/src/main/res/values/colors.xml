@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#ECECEC</color>
-    <color name="aesms_ink">#111111</color>
-    <color name="aesms_accent">#1A5CFF</color>
+    <color name="ic_launcher_background">#0B0B0B</color>
+    <color name="aesms_ink">#0B0B0B</color>
+    <color name="aesms_accent">#0066FF</color>
+    <color name="aesms_bg">#F4F4F4</color>
+    <color name="aesms_secondary">#9AA0A6</color>
 </resources>

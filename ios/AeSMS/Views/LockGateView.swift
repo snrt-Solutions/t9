@@ -10,9 +10,14 @@ struct LockGateView: View {
             T9Theme.bg.ignoresSafeArea()
             VStack(alignment: .leading, spacing: T9Theme.space3) {
                 VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .firstTextBaseline, spacing: 0) {
                     Text("AeSMS")
                         .font(T9Theme.font(32, .bold))
                         .foregroundStyle(T9Theme.ink)
+                    Text(".io")
+                        .font(T9Theme.font(32, .bold))
+                        .foregroundStyle(T9Theme.accent)
+                }
                     Text("Locked")
                         .font(T9Theme.font(20, .semibold))
                         .foregroundStyle(T9Theme.ink)

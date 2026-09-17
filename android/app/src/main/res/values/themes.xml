@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Theme.AeSMS" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:statusBarColor">#ECECEC</item>
-        <item name="android:navigationBarColor">#ECECEC</item>
-        <item name="android:windowBackground">#ECECEC</item>
+        <item name="android:statusBarColor">#F4F4F4</item>
+        <item name="android:navigationBarColor">#F4F4F4</item>
+        <item name="android:windowBackground">#F4F4F4</item>
         <item name="android:windowLightStatusBar">true</item>
     </style>
 </resources>

@@ -37,7 +37,9 @@
 	</array>
 	<key>UIAppFonts</key>
 	<array>
-		<string>CascadiaCode.ttf</string>
+		<string>IBMPlexMono-Regular.otf</string>
+		<string>IBMPlexMono-Medium.otf</string>
+		<string>IBMPlexMono-SemiBold.otf</string>
 	</array>
 	<key>UILaunchScreen</key>
 	<dict/>
