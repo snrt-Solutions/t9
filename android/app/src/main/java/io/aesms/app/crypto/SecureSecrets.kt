@@ -28,6 +28,11 @@ class SecureSecrets(context: Context) {
         prefs.edit().putString(key, value).apply()
     }
 
+    /** Synchronous write for identity keys (avoid apply() races on first mint). */
+    fun setCommitted(key: String, value: String) {
+        prefs.edit().putString(key, value).commit()
+    }
+
     fun delete(key: String) {
         prefs.edit().remove(key).apply()
     }

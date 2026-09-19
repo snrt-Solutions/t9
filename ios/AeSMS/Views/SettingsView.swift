@@ -28,8 +28,14 @@ struct SettingsView: View {
                         FieldLabel(text: "Encrypted backup")
                         SecureField("passphrase", text: $passphrase)
                             .t9Field()
-                        SecondaryButton(title: "Export backup") { export() }
-                        SecondaryButton(title: "Restore from paste") { restore() }
+                        SecondaryButton(title: "Export backup") {
+                            Keyboard.dismiss()
+                            export()
+                        }
+                        SecondaryButton(title: "Restore from paste") {
+                            Keyboard.dismiss()
+                            restore()
+                        }
                         TextEditor(text: $backupB64)
                             .font(T9Theme.font(11))
                             .frame(minHeight: 88)
@@ -61,6 +67,7 @@ struct SettingsView: View {
             }
             .padding(.bottom, T9Theme.space3)
         }
+        .t9KeyboardDismiss()
         .background(T9Theme.bg.ignoresSafeArea())
     }
 
@@ -100,11 +107,9 @@ struct SettingsView: View {
         }
         do {
             let res = try app.store.importBackup(data: data, passphrase: passphrase)
-            Keychain.set("identity_x25519_priv", value: res.priv)
-            Keychain.set("identity_x25519_pub", value: res.pub)
+            app.keys.replaceIdentity(privateKeyB64: res.priv, publicKeyB64: res.pub)
             app.contacts = res.contacts
             app.store.saveContacts(res.contacts)
-            _ = app.keys.loadOrCreateIdentity()
             status = "restored keys+contacts - re-release device on web"
         } catch {
             status = error.localizedDescription

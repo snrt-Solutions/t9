@@ -22,21 +22,39 @@ class KeyStore(private val secrets: SecureSecrets) {
         val publicKeyB64: String,
     )
 
+    @Volatile
+    private var cached: Identity? = null
+
+    /**
+     * Load-or-create must be single-flight: concurrent first calls used to mint two
+     * keypairs, advertise one via pair QR, then decrypt with the other → one-way mail.
+     */
+    @Synchronized
     fun loadOrCreateIdentity(): Identity {
+        cached?.let { return it }
         val existing = secrets.get(PRIV_KEY)
         if (existing != null) {
             val privRaw = Base64.decode(existing, Base64.DEFAULT)
             val priv = X25519PrivateKeyParameters(privRaw, 0)
             val pub = Base64.encodeToString(priv.generatePublicKey().encoded, Base64.NO_WRAP)
-            secrets.set(PUB_KEY, pub)
-            return Identity(privRaw, pub)
+            secrets.setCommitted(PUB_KEY, pub)
+            return Identity(privRaw, pub).also { cached = it }
         }
         val priv = X25519PrivateKeyParameters(SecureRandom())
         val privB64 = Base64.encodeToString(priv.encoded, Base64.NO_WRAP)
         val pub = Base64.encodeToString(priv.generatePublicKey().encoded, Base64.NO_WRAP)
-        secrets.set(PRIV_KEY, privB64)
-        secrets.set(PUB_KEY, pub)
-        return Identity(priv.encoded, pub)
+        secrets.setCommitted(PRIV_KEY, privB64)
+        secrets.setCommitted(PUB_KEY, pub)
+        return Identity(priv.encoded, pub).also { cached = it }
+    }
+
+    /** Replace identity after backup restore (clears in-memory cache). */
+    @Synchronized
+    fun replaceIdentity(privateKeyB64: String, publicKeyB64: String) {
+        secrets.setCommitted(PRIV_KEY, privateKeyB64)
+        secrets.setCommitted(PUB_KEY, publicKeyB64)
+        cached = null
+        loadOrCreateIdentity()
     }
 
     fun publicKeyB64(): String = loadOrCreateIdentity().publicKeyB64
@@ -131,10 +149,21 @@ class KeyStore(private val secrets: SecureSecrets) {
             val deflater = Deflater(Deflater.DEFAULT_COMPRESSION, false)
             deflater.setInput(src)
             deflater.finish()
-            val buf = ByteArray(src.size + maxOf(src.size / 4, 64) + 32)
-            val n = deflater.deflate(buf)
+            val chunks = ArrayList<ByteArray>()
+            val buf = ByteArray(maxOf(src.size + 64, 256))
+            while (!deflater.finished()) {
+                val n = deflater.deflate(buf)
+                if (n > 0) chunks.add(buf.copyOf(n))
+            }
             deflater.end()
-            return buf.copyOf(n)
+            val total = chunks.sumOf { it.size }
+            val out = ByteArray(total)
+            var off = 0
+            for (c in chunks) {
+                System.arraycopy(c, 0, out, off, c.size)
+                off += c.size
+            }
+            return out
         }
 
         fun zlibDecompress(src: ByteArray): ByteArray {
@@ -177,16 +206,18 @@ fun ByteArray.base64Url(): String =
     Base64.encodeToString(this, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
 
 fun decodeBase64UrlOrStd(s: String): ByteArray? {
-    return try {
-        Base64.decode(s, Base64.DEFAULT)
+    // Server emits RawURLEncoding; try URL-safe first so '-' / '_' are never skipped.
+    val urlFlags = Base64.URL_SAFE or Base64.NO_WRAP
+    try {
+        return Base64.decode(s, urlFlags)
     } catch (_: Exception) {
-        try {
-            var padded = s.replace('-', '+').replace('_', '/')
-            val pad = (4 - padded.length % 4) % 4
-            if (pad > 0) padded += "=".repeat(pad)
-            Base64.decode(padded, Base64.DEFAULT)
-        } catch (_: Exception) {
-            null
-        }
+    }
+    try {
+        var padded = s.replace('-', '+').replace('_', '/')
+        val pad = (4 - padded.length % 4) % 4
+        if (pad > 0) padded += "=".repeat(pad)
+        return Base64.decode(padded, Base64.DEFAULT)
+    } catch (_: Exception) {
+        return null
     }
 }

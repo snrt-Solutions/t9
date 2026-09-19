@@ -10,26 +10,51 @@ final class KeyStore {
     private let privKey = "identity_x25519_priv"
     private let pubKey = "identity_x25519_pub"
     private static let v2Magic = Data("AESMS2".utf8)
+    private let lock = NSLock()
+    private var cached: Identity?
 
     struct Identity {
         var privateKey: Curve25519.KeyAgreement.PrivateKey
         var publicKeyB64: String
     }
 
+    /// Load-or-create must be single-flight: concurrent first calls used to mint two
+    /// keypairs, advertise one via pair QR, then decrypt with the other → one-way mail.
     @discardableResult
     func loadOrCreateIdentity() -> Identity {
+        lock.lock()
+        defer { lock.unlock() }
+        if let cached { return cached }
         if let privB64 = Keychain.get(privKey),
            let data = Data(base64Encoded: privB64),
            let priv = try? Curve25519.KeyAgreement.PrivateKey(rawRepresentation: data) {
             let pub = priv.publicKey.rawRepresentation.base64EncodedString()
             Keychain.set(pubKey, value: pub)
-            return Identity(privateKey: priv, publicKeyB64: pub)
+            let id = Identity(privateKey: priv, publicKeyB64: pub)
+            cached = id
+            return id
         }
         let priv = Curve25519.KeyAgreement.PrivateKey()
         Keychain.set(privKey, value: priv.rawRepresentation.base64EncodedString())
         let pub = priv.publicKey.rawRepresentation.base64EncodedString()
         Keychain.set(pubKey, value: pub)
-        return Identity(privateKey: priv, publicKeyB64: pub)
+        let id = Identity(privateKey: priv, publicKeyB64: pub)
+        cached = id
+        return id
+    }
+
+    /// Replace identity after backup restore (clears in-memory cache).
+    func replaceIdentity(privateKeyB64: String, publicKeyB64: String) {
+        lock.lock()
+        defer { lock.unlock() }
+        Keychain.set(privKey, value: privateKeyB64)
+        Keychain.set(pubKey, value: publicKeyB64)
+        cached = nil
+        if let data = Data(base64Encoded: privateKeyB64),
+           let priv = try? Curve25519.KeyAgreement.PrivateKey(rawRepresentation: data) {
+            let pub = priv.publicKey.rawRepresentation.base64EncodedString()
+            cached = Identity(privateKey: priv, publicKeyB64: pub)
+        }
     }
 
     func publicKeyB64() -> String { loadOrCreateIdentity().publicKeyB64 }

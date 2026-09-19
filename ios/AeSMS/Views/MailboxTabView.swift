@@ -9,9 +9,6 @@ struct MailboxTabView: View {
                 .tabItem { Label("Chats", systemImage: "bubble.left.and.bubble.right") }
                 .badge(app.unreadTotal == 0 ? nil : Text("\(app.unreadTotal)"))
 
-            ComposerView()
-                .tabItem { Label("Compose", systemImage: "square.and.pencil") }
-
             ContactsView()
                 .tabItem { Label("Contacts", systemImage: "person.crop.rectangle") }
 

@@ -820,12 +820,16 @@ func (s *Store) ClaimPairOffer(code, claimerAccountID, claimerUsername, claimerP
 	if offererAcc == claimerAccountID {
 		return nil, ErrPairSelf
 	}
-	_, err := s.db.Exec(
+	res, err := s.db.Exec(
 		`UPDATE pair_offers SET claimer_account_id=?, claimer_username=?, claimer_pubkey=? WHERE id=? AND (claimer_account_id IS NULL OR claimer_account_id='')`,
 		claimerAccountID, claimerUsername, claimerPubkey, id,
 	)
 	if err != nil {
 		return nil, err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return nil, ErrConflict
 	}
 	_ = s.SealNow()
 	return &PairPeer{Username: offererUser, Pubkey: offererPub}, nil

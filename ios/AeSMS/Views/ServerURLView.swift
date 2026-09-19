@@ -26,6 +26,7 @@ struct ServerURLView: View {
                         }
 
                         PrimaryButton(title: "Continue", tint: T9Theme.accent, busy: busy) {
+                            Keyboard.dismiss()
                             Task { await continueTap() }
                         }
 
@@ -40,6 +41,8 @@ struct ServerURLView: View {
             }
             .padding(.bottom, T9Theme.space3)
         }
+        .t9KeyboardDismiss()
+        .background(T9Theme.bg.ignoresSafeArea())
     }
 
     private var brand: some View {

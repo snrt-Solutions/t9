@@ -47,11 +47,14 @@ struct CredentialsView: View {
             .padding(.top, T9Theme.space2)
             .padding(.bottom, T9Theme.space3)
         }
+        .t9KeyboardDismiss()
+        .background(T9Theme.bg.ignoresSafeArea())
     }
 
     private func login() async {
         busy = true
         defer { busy = false }
+        Keyboard.dismiss()
         do {
             let deviceID = UIDevice.current.identifierForVendor?.uuidString ?? UUID().uuidString
             let res = try await app.api.deviceLogin(

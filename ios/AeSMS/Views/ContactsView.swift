@@ -73,6 +73,7 @@ struct ContactsView: View {
                             .autocorrectionDisabled()
                             .t9Field()
                         PrimaryButton(title: "Claim from paste", tint: T9Theme.teal, busy: pairBusy) {
+                            Keyboard.dismiss()
                             Task { await claimFromPayload(scanPayload) }
                         }
                         if !status.isEmpty {
@@ -111,6 +112,7 @@ struct ContactsView: View {
             }
             .padding(.bottom, T9Theme.space3)
         }
+        .t9KeyboardDismiss()
         .background(T9Theme.bg.ignoresSafeArea())
         .fullScreenCover(isPresented: $showScanner) {
             QRScannerView(
@@ -275,9 +277,19 @@ struct ContactsView: View {
             status = "that is your own QR"
             return false
         }
-        if app.contacts.contains(where: { $0.username.caseInsensitiveCompare(username) == .orderedSame }) {
-            status = "already saved: \(username)"
-            return false
+        if let idx = app.contacts.firstIndex(where: { $0.username.caseInsensitiveCompare(username) == .orderedSame }) {
+            var existing = app.contacts[idx]
+            if existing.pubkey == pubkey {
+                status = "already saved: \(username)"
+                return false
+            }
+            // Re-pair with a corrected pubkey (fixes one-way decrypt after a bad first save).
+            existing.pubkey = pubkey
+            if !srv.isEmpty { existing.serverFingerprint = srv }
+            app.contacts[idx] = existing
+            app.store.saveContacts(app.contacts)
+            status = "updated contact key: \(username)"
+            return true
         }
         if !srv.isEmpty && !app.fingerprint.isEmpty && srv != app.fingerprint {
             status = "warning: server fingerprint mismatch - contact saved with flag"

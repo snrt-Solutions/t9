@@ -16,7 +16,7 @@ struct InboxView: View {
                 if chats.isEmpty {
                     EmptyStateBlock(
                         title: "No chats yet",
-                        detail: "Fetch sealed messages, or compose one to a QR contact."
+                        detail: "Fetch sealed messages, or start a new chat with a QR contact."
                     )
                     .padding(.horizontal, T9Theme.pageInset)
                     Spacer(minLength: 0)
@@ -68,7 +68,7 @@ struct InboxView: View {
             }
             .background(T9Theme.bg.ignoresSafeArea())
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItemGroup(placement: .topBarTrailing) {
                     Button {
                         Task { await fetch() }
                     } label: {
@@ -82,6 +82,15 @@ struct InboxView: View {
                     .tint(T9Theme.accent)
                     .disabled(busy)
                     .accessibilityLabel("Fetch inbox")
+
+                    NavigationLink {
+                        NewChatView()
+                    } label: {
+                        Image(systemName: "square.and.pencil")
+                            .font(.system(size: 16, weight: .semibold))
+                    }
+                    .tint(T9Theme.accent)
+                    .accessibilityLabel("New chat")
                 }
             }
             .confirmationDialog(

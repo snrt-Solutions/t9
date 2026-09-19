@@ -31,10 +31,6 @@
 	<string>Scan contact QR codes in person.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Unlock the AeSMS mailbox with Face ID or your device passcode.</string>
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>remote-notification</string>
-	</array>
 	<key>UIAppFonts</key>
 	<array>
 		<string>IBMPlexMono-Regular.otf</string>

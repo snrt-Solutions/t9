@@ -27,6 +27,8 @@ import io.aesms.app.ui.theme.PrimaryButton
 import io.aesms.app.ui.theme.ScreenChrome
 import io.aesms.app.ui.theme.T9TextField
 import io.aesms.app.ui.theme.T9Theme
+import io.aesms.app.ui.theme.rememberKeyboardDismiss
+import io.aesms.app.ui.theme.t9KeyboardDismiss
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -35,11 +37,13 @@ import kotlinx.coroutines.withContext
 fun ServerURLScreen(vm: AppViewModel) {
     var busy by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val dismissKeyboard = rememberKeyboardDismiss()
 
     Column(
         Modifier
             .fillMaxSize()
             .background(T9Theme.bg)
+            .t9KeyboardDismiss()
             .verticalScroll(rememberScrollState())
             .padding(top = T9Theme.space2, bottom = T9Theme.space3),
     ) {
@@ -71,6 +75,7 @@ fun ServerURLScreen(vm: AppViewModel) {
                 tint = T9Theme.accent,
                 busy = busy,
                 onClick = {
+                    dismissKeyboard()
                     scope.launch {
                         busy = true
                         try {
@@ -109,11 +114,13 @@ fun CredentialsScreen(vm: AppViewModel) {
     var password by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val dismissKeyboard = rememberKeyboardDismiss()
 
     Column(
         Modifier
             .fillMaxSize()
             .background(T9Theme.bg)
+            .t9KeyboardDismiss()
             .verticalScroll(rememberScrollState())
             .padding(vertical = T9Theme.space2),
     ) {
@@ -134,6 +141,7 @@ fun CredentialsScreen(vm: AppViewModel) {
                 tint = T9Theme.teal,
                 busy = busy,
                 onClick = {
+                    dismissKeyboard()
                     scope.launch {
                         busy = true
                         try {

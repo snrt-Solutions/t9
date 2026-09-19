@@ -10,27 +10,38 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.aesms.app.R
-
-import androidx.compose.ui.Modifier
 
 object T9Theme {
     val bg = Color(0xFFF4F4F4)
@@ -103,6 +114,40 @@ fun FieldLabel(text: String) {
     )
 }
 
+/** Hide the soft keyboard and clear text-field focus. */
+@Composable
+fun rememberKeyboardDismiss(): () -> Unit {
+    val focusManager = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
+    return remember(focusManager, keyboard) {
+        {
+            focusManager.clearFocus(force = true)
+            keyboard?.hide()
+        }
+    }
+}
+
+/**
+ * Form-screen keyboard UX: lift content above the IME and dismiss when the
+ * user starts scrolling (or taps Done on single-line fields).
+ */
+fun Modifier.t9KeyboardDismiss(): Modifier = composed {
+    val dismiss = rememberKeyboardDismiss()
+    val connection = remember(dismiss) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (source == NestedScrollSource.UserInput && available != Offset.Zero) {
+                    dismiss()
+                }
+                return Offset.Zero
+            }
+        }
+    }
+    this
+        .imePadding()
+        .nestedScroll(connection)
+}
+
 @Composable
 fun T9TextField(
     value: String,
@@ -113,6 +158,7 @@ fun T9TextField(
     enabled: Boolean = true,
     minHeight: Dp = 48.dp,
 ) {
+    val dismiss = rememberKeyboardDismiss()
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -132,6 +178,12 @@ fun T9TextField(
             singleLine = singleLine,
             textStyle = T9Theme.text(15, FontWeight.Medium),
             cursorBrush = SolidColor(T9Theme.accent),
+            keyboardOptions = KeyboardOptions(
+                imeAction = if (singleLine) ImeAction.Done else ImeAction.Default,
+            ),
+            keyboardActions = KeyboardActions(
+                onDone = { dismiss() },
+            ),
             modifier = Modifier.fillMaxWidth(),
         )
     }

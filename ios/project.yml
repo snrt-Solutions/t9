@@ -25,5 +25,4 @@ targets:
         CODE_SIGN_ENTITLEMENTS: AeSMS/AeSMS.entitlements
     entitlements:
       path: AeSMS/AeSMS.entitlements
-      properties:
-        aps-environment: development
+      properties: {}

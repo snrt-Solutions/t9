@@ -17,11 +17,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -30,9 +32,6 @@ import androidx.compose.material.icons.filled.Contacts
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -77,6 +76,8 @@ import io.aesms.app.ui.theme.StatusBadge
 import io.aesms.app.ui.theme.SurfacePanel
 import io.aesms.app.ui.theme.T9TextField
 import io.aesms.app.ui.theme.T9Theme
+import io.aesms.app.ui.theme.rememberKeyboardDismiss
+import io.aesms.app.ui.theme.t9KeyboardDismiss
 import io.aesms.app.util.Grapheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -90,6 +91,7 @@ import java.util.Date
 fun MailboxScreen(vm: AppViewModel) {
     var tab by remember { mutableIntStateOf(0) }
     var openChat by remember { mutableStateOf<String?>(null) }
+    var pickingNewChat by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         vm.startPushIfNeeded()
@@ -101,13 +103,24 @@ fun MailboxScreen(vm: AppViewModel) {
         return
     }
 
+    if (pickingNewChat) {
+        NewChatScreen(
+            vm = vm,
+            onPick = { username ->
+                pickingNewChat = false
+                openChat = username
+            },
+            onBack = { pickingNewChat = false },
+        )
+        return
+    }
+
     Scaffold(
         containerColor = T9Theme.bg,
         bottomBar = {
             NavigationBar(containerColor = T9Theme.surface) {
                 val items = listOf(
                     Triple("Chats", Icons.AutoMirrored.Filled.Chat, vm.unreadTotal),
-                    Triple("Compose", Icons.Default.Edit, 0),
                     Triple("Contacts", Icons.Default.Contacts, 0),
                     Triple("Settings", Icons.Default.Settings, 0),
                 )
@@ -143,17 +156,20 @@ fun MailboxScreen(vm: AppViewModel) {
     ) { padding ->
         Box(modifier = Modifier.padding(padding)) {
             when (tab) {
-                0 -> InboxScreen(vm) { openChat = it }
-                1 -> ComposerScreen(vm)
-                2 -> ContactsScreen(vm)
-                3 -> SettingsScreen(vm)
+                0 -> InboxScreen(
+                    vm = vm,
+                    onOpen = { openChat = it },
+                    onNewChat = { pickingNewChat = true },
+                )
+                1 -> ContactsScreen(vm)
+                2 -> SettingsScreen(vm)
             }
         }
     }
 }
 
 @Composable
-fun InboxScreen(vm: AppViewModel, onOpen: (String) -> Unit) {
+fun InboxScreen(vm: AppViewModel, onOpen: (String) -> Unit, onNewChat: () -> Unit) {
     var busy by remember { mutableStateOf(false) }
     var pendingDelete by remember { mutableStateOf<ChatSummary?>(null) }
     val scope = rememberCoroutineScope()
@@ -167,7 +183,7 @@ fun InboxScreen(vm: AppViewModel, onOpen: (String) -> Unit) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Chats", style = T9Theme.text(26, FontWeight.Bold))
                     Spacer(Modifier.width(12.dp))
@@ -178,15 +194,25 @@ fun InboxScreen(vm: AppViewModel, onOpen: (String) -> Unit) {
                     style = T9Theme.text(14).copy(color = T9Theme.muted),
                 )
             }
-            TextButton(onClick = {
-                scope.launch {
-                    busy = true
-                    val n = vm.fetchInboxQuiet()
-                    vm.setStatus(if (n > 0) (if (n == 1) "1 new message" else "$n new messages") else "fetched")
-                    busy = false
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = {
+                    scope.launch {
+                        busy = true
+                        val n = vm.fetchInboxQuiet()
+                        vm.setStatus(if (n > 0) (if (n == 1) "1 new message" else "$n new messages") else "fetched")
+                        busy = false
+                    }
+                }) {
+                    Text(if (busy) "…" else "Fetch", style = T9Theme.text(14, FontWeight.SemiBold).copy(color = T9Theme.accent))
                 }
-            }) {
-                Text(if (busy) "…" else "Fetch", style = T9Theme.text(14, FontWeight.SemiBold).copy(color = T9Theme.accent))
+                TextButton(onClick = onNewChat) {
+                    Icon(
+                        Icons.Default.Edit,
+                        contentDescription = "New chat",
+                        tint = T9Theme.accent,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
             }
         }
         Box(
@@ -199,7 +225,7 @@ fun InboxScreen(vm: AppViewModel, onOpen: (String) -> Unit) {
             Box(modifier = Modifier.padding(horizontal = T9Theme.pageInset)) {
                 EmptyStateBlock(
                     title = "No chats yet",
-                    detail = "Fetch sealed messages, or compose one to a QR contact.",
+                    detail = "Fetch sealed messages, or start a new chat with a QR contact.",
                 )
             }
         } else {
@@ -274,12 +300,32 @@ fun InboxScreen(vm: AppViewModel, onOpen: (String) -> Unit) {
 @Composable
 fun ChatThreadScreen(vm: AppViewModel, username: String, onBack: () -> Unit) {
     var confirmClear by remember { mutableStateOf(false) }
+    var body by remember { mutableStateOf("") }
+    var status by remember { mutableStateOf("") }
+    var sending by remember { mutableStateOf(false) }
     val messages = vm.messages(username)
     val df = remember { DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT) }
+    val scope = rememberCoroutineScope()
+    val listState = rememberLazyListState()
+    val dismissKeyboard = rememberKeyboardDismiss()
+    val contact = vm.contacts.firstOrNull { it.username.equals(username, true) }
+    val graphemes = Grapheme.count(body)
+    val over = graphemes > 160
+    val canSend = !over && body.isNotEmpty() && contact != null && !sending
 
     LaunchedEffect(username) { vm.markChatRead(username) }
+    LaunchedEffect(messages.size) {
+        if (messages.isNotEmpty()) {
+            listState.animateScrollToItem(messages.lastIndex)
+        }
+    }
 
-    Column(modifier = Modifier.fillMaxSize().background(T9Theme.bg)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(T9Theme.bg)
+            .imePadding(),
+    ) {
         Row(
             Modifier
                 .fillMaxWidth()
@@ -293,15 +339,130 @@ fun ChatThreadScreen(vm: AppViewModel, username: String, onBack: () -> Unit) {
                 Text("Clear", style = T9Theme.text(14, FontWeight.SemiBold).copy(color = T9Theme.warn))
             }
         }
-        if (messages.isEmpty()) {
-            Box(modifier = Modifier.padding(horizontal = T9Theme.pageInset)) {
-                EmptyStateBlock("No messages", "Nothing stored locally for this chat yet.")
+        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            if (messages.isEmpty()) {
+                Box(modifier = Modifier.padding(horizontal = T9Theme.pageInset)) {
+                    EmptyStateBlock(
+                        if (contact == null) "Unknown contact" else "No messages yet",
+                        if (contact == null) {
+                            "This peer is not in your contact list. Re-pair via Contacts to send."
+                        } else {
+                            "Say hello — messages stay sealed end to end."
+                        },
+                    )
+                }
+            } else {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = T9Theme.pageInset),
+                ) {
+                    items(messages, key = { it.id }) { msg ->
+                        MessageBubble(msg, df)
+                        Spacer(Modifier.height(8.dp))
+                    }
+                }
             }
-        } else {
-            LazyColumn(modifier = Modifier.padding(horizontal = T9Theme.pageInset)) {
-                items(messages, key = { it.id }) { msg ->
-                    MessageBubble(msg, df)
-                    Spacer(Modifier.height(8.dp))
+        }
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .background(T9Theme.bg)
+                .t9KeyboardDismiss()
+                .padding(horizontal = T9Theme.pageInset, vertical = 10.dp),
+        ) {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(T9Theme.rule)
+                    .background(T9Theme.hair.copy(alpha = 0.35f)),
+            )
+            Spacer(Modifier.height(10.dp))
+            if (contact == null) {
+                Text(
+                    "Re-pair this contact to send.",
+                    style = T9Theme.text(12).copy(color = T9Theme.warn),
+                )
+                Spacer(Modifier.height(8.dp))
+            }
+            Row(
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                T9TextField(
+                    value = body,
+                    onValueChange = { body = it },
+                    placeholder = "Message",
+                    singleLine = false,
+                    minHeight = 44.dp,
+                    enabled = !sending && contact != null,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(
+                    onClick = {
+                        dismissKeyboard()
+                        scope.launch {
+                            val tok = vm.deviceToken ?: return@launch
+                            val peer = contact ?: run {
+                                status = "re-pair via Contacts"
+                                return@launch
+                            }
+                            sending = true
+                            status = "Sending…"
+                            try {
+                                vm.fetchInboxQuiet()
+                                val plain = body
+                                val sealed = withContext(Dispatchers.Default) {
+                                    vm.keys.seal(plain, peer.pubkey)
+                                }
+                                val id = withContext(Dispatchers.IO) {
+                                    vm.api.postMessage(
+                                        vm.serverURL,
+                                        tok,
+                                        peer.username,
+                                        sealed.base64Url(),
+                                        graphemes,
+                                        vm.keys.publicKeyB64(),
+                                    )
+                                }
+                                vm.recordOutbound(id, peer.username, plain)
+                                status = ""
+                                body = ""
+                            } catch (e: Exception) {
+                                status = e.message ?: "send failed"
+                            } finally {
+                                sending = false
+                            }
+                        }
+                    },
+                    enabled = canSend,
+                ) {
+                    Text(
+                        if (sending) "…" else "Send",
+                        style = T9Theme.text(14, FontWeight.SemiBold).copy(
+                            color = if (canSend) T9Theme.accent else T9Theme.muted,
+                        ),
+                    )
+                }
+            }
+            Spacer(Modifier.height(6.dp))
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    "$graphemes/160",
+                    style = T9Theme.text(12, FontWeight.Medium).copy(
+                        color = if (over) T9Theme.warn else T9Theme.muted,
+                    ),
+                )
+                if (status.isNotEmpty()) {
+                    Text(
+                        status,
+                        style = T9Theme.text(12).copy(color = if (sending) T9Theme.teal else T9Theme.muted),
+                        maxLines = 1,
+                    )
                 }
             }
         }
@@ -316,13 +477,75 @@ fun ChatThreadScreen(vm: AppViewModel, username: String, onBack: () -> Unit) {
                 TextButton(onClick = {
                     vm.deleteChat(username)
                     confirmClear = false
-                    onBack()
                 }) { Text("Clear chat") }
             },
             dismissButton = {
                 TextButton(onClick = { confirmClear = false }) { Text("Cancel") }
             },
         )
+    }
+}
+
+@Composable
+fun NewChatScreen(vm: AppViewModel, onPick: (String) -> Unit, onBack: () -> Unit) {
+    val sorted = vm.contacts.sortedBy { it.username.lowercase() }
+
+    Column(modifier = Modifier.fillMaxSize().background(T9Theme.bg)) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = T9Theme.pageInset, vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            GhostButton("Back") { onBack() }
+            Text("New chat", style = T9Theme.text(16, FontWeight.SemiBold))
+            Spacer(Modifier.width(64.dp))
+        }
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(T9Theme.rule)
+                .background(T9Theme.hair.copy(alpha = 0.35f)),
+        )
+        if (sorted.isEmpty()) {
+            Box(modifier = Modifier.padding(horizontal = T9Theme.pageInset, vertical = T9Theme.space2)) {
+                EmptyStateBlock(
+                    title = "No contacts yet",
+                    detail = "Pair via QR on the Contacts tab first — there is no server address book.",
+                )
+            }
+        } else {
+            LazyColumn {
+                items(sorted, key = { it.id }) { contact ->
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable { onPick(contact.username) }
+                            .padding(horizontal = T9Theme.pageInset, vertical = 14.dp),
+                    ) {
+                        Text(contact.username, style = T9Theme.text(15, FontWeight.SemiBold))
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "srv ${contact.serverFingerprint}",
+                            style = T9Theme.text(11).copy(
+                                color = if (contact.serverFingerprint == vm.fingerprint) {
+                                    T9Theme.teal
+                                } else {
+                                    T9Theme.warn
+                                },
+                            ),
+                        )
+                    }
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(T9Theme.hair.copy(alpha = 0.12f)),
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -365,150 +588,6 @@ private fun MessageBubble(msg: LocalMessage, df: DateFormat) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ComposerScreen(vm: AppViewModel) {
-    var to by remember { mutableStateOf("") }
-    var body by remember { mutableStateOf("") }
-    var status by remember { mutableStateOf("") }
-    var sending by remember { mutableStateOf(false) }
-    var menuOpen by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
-    val graphemes = Grapheme.count(body)
-    val over = graphemes > 160
-    val canSend = !over && body.isNotEmpty() && to.isNotEmpty() && !sending
-    val sorted = vm.contacts.sortedBy { it.username.lowercase() }
-
-    LaunchedEffect(Unit) { vm.fetchInboxQuiet() }
-
-    Column(
-        Modifier
-            .fillMaxSize()
-            .background(T9Theme.bg)
-            .verticalScroll(rememberScrollState())
-            .padding(vertical = T9Theme.space2),
-    ) {
-        ScreenChrome(title = "Compose", subtitle = "160 grapheme blocks. Sealed to a QR contact.") {
-            FieldLabel("To")
-            Spacer(Modifier.height(8.dp))
-            if (sorted.isEmpty()) {
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .height(48.dp)
-                        .background(T9Theme.surface)
-                        .border(T9Theme.stroke, T9Theme.hair.copy(alpha = 0.55f))
-                        .padding(14.dp),
-                    contentAlignment = Alignment.CenterStart,
-                ) {
-                    Text(
-                        "scan their QR first - no server address book",
-                        style = T9Theme.text(14).copy(color = T9Theme.muted),
-                    )
-                }
-            } else {
-                Box {
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .height(48.dp)
-                            .background(T9Theme.surface)
-                            .border(T9Theme.stroke, T9Theme.hair.copy(alpha = 0.55f))
-                            .clickable { menuOpen = true }
-                            .padding(horizontal = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text(
-                            if (to.isEmpty()) "Choose contact" else to,
-                            style = T9Theme.text(15, FontWeight.Medium).copy(
-                                color = if (to.isEmpty()) T9Theme.muted else T9Theme.ink,
-                            ),
-                        )
-                        Text("▾", style = T9Theme.text(14).copy(color = T9Theme.muted))
-                    }
-                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                        sorted.forEach { c ->
-                            DropdownMenuItem(
-                                text = { Text(c.username) },
-                                onClick = {
-                                    to = c.username
-                                    menuOpen = false
-                                },
-                            )
-                        }
-                    }
-                }
-            }
-            Spacer(Modifier.height(T9Theme.space2))
-            FieldLabel("Message")
-            Spacer(Modifier.height(8.dp))
-            T9TextField(
-                value = body,
-                onValueChange = { body = it },
-                singleLine = false,
-                minHeight = 160.dp,
-                enabled = !sending,
-            )
-            Text(
-                "$graphemes/160",
-                style = T9Theme.text(13, FontWeight.Medium).copy(
-                    color = if (over) T9Theme.warn else T9Theme.muted,
-                ),
-            )
-            Spacer(Modifier.height(T9Theme.space2))
-            PrimaryButton(
-                title = if (sending) "Sending…" else "Send sealed",
-                tint = if (over) T9Theme.warn else T9Theme.ink,
-                busy = sending,
-                enabled = canSend || sending,
-                onClick = {
-                    scope.launch {
-                        val tok = vm.deviceToken ?: return@launch
-                        val contact = vm.contacts.firstOrNull { it.username.equals(to, true) }
-                        if (contact == null) {
-                            status = "scan their QR first - no server address book"
-                            return@launch
-                        }
-                        sending = true
-                        status = "Sending…"
-                        try {
-                            vm.fetchInboxQuiet()
-                            val plain = body
-                            val sealed = withContext(Dispatchers.Default) {
-                                vm.keys.seal(plain, contact.pubkey)
-                            }
-                            val id = withContext(Dispatchers.IO) {
-                                vm.api.postMessage(
-                                    vm.serverURL,
-                                    tok,
-                                    contact.username,
-                                    sealed.base64Url(),
-                                    graphemes,
-                                    vm.keys.publicKeyB64(),
-                                )
-                            }
-                            vm.recordOutbound(id, contact.username, plain)
-                            status = "Sent"
-                            body = ""
-                        } catch (e: Exception) {
-                            status = e.message ?: "send failed"
-                        } finally {
-                            sending = false
-                        }
-                    }
-                },
-            )
-            if (status.isNotEmpty()) {
-                Text(
-                    status,
-                    style = T9Theme.text(13).copy(color = if (sending) T9Theme.teal else T9Theme.muted),
-                )
-            }
-        }
-    }
-}
-
 @Composable
 fun ContactsScreen(vm: AppViewModel) {
     var scanPayload by remember { mutableStateOf("") }
@@ -518,6 +597,7 @@ fun ContactsScreen(vm: AppViewModel) {
     var copied by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val dismissKeyboard = rememberKeyboardDismiss()
 
     fun pairUri(): String {
         if (pairCode.isEmpty()) return ""
@@ -531,9 +611,23 @@ fun ContactsScreen(vm: AppViewModel) {
             status = "that is your own QR"
             return false
         }
-        if (vm.contacts.any { it.username.equals(username, true) }) {
-            status = "already saved: $username"
-            return false
+        val existingIdx = vm.contacts.indexOfFirst { it.username.equals(username, true) }
+        if (existingIdx >= 0) {
+            val existing = vm.contacts[existingIdx]
+            if (existing.pubkey == pubkey) {
+                status = "already saved: $username"
+                return false
+            }
+            // Re-pair with a corrected pubkey (fixes one-way decrypt after a bad first save).
+            val updated = existing.copy(
+                pubkey = pubkey,
+                serverFingerprint = srv.ifEmpty { existing.serverFingerprint },
+            )
+            val next = vm.contacts.toMutableList()
+            next[existingIdx] = updated
+            vm.updateContacts(next)
+            status = "updated contact key: $username"
+            return true
         }
         status = if (srv.isNotEmpty() && vm.fingerprint.isNotEmpty() && srv != vm.fingerprint) {
             "warning: server fingerprint mismatch - contact saved with flag"
@@ -604,6 +698,7 @@ fun ContactsScreen(vm: AppViewModel) {
         Modifier
             .fillMaxSize()
             .background(T9Theme.bg)
+            .t9KeyboardDismiss()
             .verticalScroll(rememberScrollState())
             .padding(vertical = T9Theme.space2),
     ) {
@@ -678,6 +773,7 @@ fun ContactsScreen(vm: AppViewModel) {
                 tint = T9Theme.teal,
                 busy = pairBusy,
                 onClick = {
+                    dismissKeyboard()
                     scope.launch {
                         val trimmed = scanPayload.trim()
                         if (trimmed.startsWith("aesms://contact")) {
@@ -770,11 +866,13 @@ fun SettingsScreen(vm: AppViewModel) {
     var status by remember { mutableStateOf("") }
     var backupB64 by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
+    val dismissKeyboard = rememberKeyboardDismiss()
 
     Column(
         Modifier
             .fillMaxSize()
             .background(T9Theme.bg)
+            .t9KeyboardDismiss()
             .verticalScroll(rememberScrollState())
             .padding(vertical = T9Theme.space2),
     ) {
@@ -792,6 +890,7 @@ fun SettingsScreen(vm: AppViewModel) {
             T9TextField(value = passphrase, onValueChange = { passphrase = it }, placeholder = "passphrase")
             Spacer(Modifier.height(12.dp))
             SecondaryButton(title = "Export backup", onClick = {
+                dismissKeyboard()
                 try {
                     val id = vm.keys.loadOrCreateIdentity()
                     val priv = android.util.Base64.encodeToString(id.privateKeyRaw, android.util.Base64.NO_WRAP)
@@ -804,13 +903,12 @@ fun SettingsScreen(vm: AppViewModel) {
             })
             Spacer(Modifier.height(8.dp))
             SecondaryButton(title = "Restore from paste", onClick = {
+                dismissKeyboard()
                 try {
                     val data = android.util.Base64.decode(backupB64, android.util.Base64.DEFAULT)
                     val (priv, pub, contacts) = vm.store.importBackup(data, passphrase)
-                    vm.secrets.set("identity_x25519_priv", priv)
-                    vm.secrets.set("identity_x25519_pub", pub)
+                    vm.keys.replaceIdentity(priv, pub)
                     vm.updateContacts(contacts)
-                    vm.keys.loadOrCreateIdentity()
                     status = "restored keys+contacts - re-release device on web"
                 } catch (e: Exception) {
                     status = e.message ?: "restore failed"

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// AeSMS.io CI — IBM Plex Mono, sharp corners, purposeful structure.
 /// Primary #0B0B0B · Accent #0066FF · Background #F4F4F4 · Secondary #9AA0A6
@@ -103,6 +104,38 @@ struct T9FieldStyle: ViewModifier {
 extension View {
     func t9Field() -> some View {
         modifier(T9FieldStyle())
+    }
+
+    /// Drag-to-dismiss plus a keyboard accessory Done control.
+    /// Wraps in a NavigationStack so the keyboard toolbar has a host.
+    func t9KeyboardDismiss() -> some View {
+        NavigationStack {
+            self
+                .scrollDismissesKeyboard(.interactively)
+                .toolbar(.hidden, for: .navigationBar)
+                .toolbarBackground(.hidden, for: .navigationBar)
+                .toolbar {
+                    ToolbarItemGroup(placement: .keyboard) {
+                        Spacer()
+                        Button("Done") {
+                            Keyboard.dismiss()
+                        }
+                        .font(T9Theme.font(15, .semibold))
+                        .foregroundStyle(T9Theme.accent)
+                    }
+                }
+        }
+    }
+}
+
+enum Keyboard {
+    static func dismiss() {
+        UIApplication.shared.sendAction(
+            #selector(UIResponder.resignFirstResponder),
+            to: nil,
+            from: nil,
+            for: nil
+        )
     }
 }
 
